@@ -1,0 +1,2 @@
+All uncertainties should be the same, they represent the uncertainty of the data set, not the uncertainty of a single point.
+Look into basian, gausian curves, probability distribution to better understand it.

@@ -40,7 +40,7 @@ When you run this, you **only** need to select and install:
 ### Build and Activate yoru Python Virtual Environment
 `cd` into the folder with the code and run:
 ```
-python3 -m venv venv
+python -m venv venv
 .\venv\Scripts\activate
 ```
 
@@ -52,7 +52,7 @@ pip3 install -r requirements.txt
 
 ## Run
 ```
-python3 Transit_Curve_Generator.py
+python Transit_Curve_Generator.py
 ```
 
 ## Updating

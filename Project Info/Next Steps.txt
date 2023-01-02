@@ -1,0 +1,3 @@
+sandard deviation(data-model)
+Find how lmfit implements weights (1/weight or 1/weight^2) ?
+Implement priors as penalty values if x^2 deviates from known value

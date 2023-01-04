@@ -7,9 +7,26 @@
 This was built using Python 3.10, although any version of Python 3 should work.
 
 ### Data
-A copy of some usable data is included in this repo as `Data.txt`.
+Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period 
 
 If you want to use different data, replace the data in the file `Data.txt` with your data.
+
+#### Data Formating
+Data should be input in the format (X Value),(Y Value),(Error).
+Commas "," are used as value separators.
+Parenthesis, brackets, spaces, and tabs, will all be ignored.
+A line break signifies a new value pair entry.
+An error value does not need to be supplied, if an Error value is not given for 1 or more data points, it will be ignored for **all** of them.
+
+Examples:
+1,2,3
+1 , 2 , 3
+1     ,2,    3
+(1), 2, (3)
+1 , 2
+1         ,2
+
+
 
 ### Linux
 #### Linux Prerequisites
@@ -23,7 +40,7 @@ sudo apt install python3-dev
 ### Build and Activate yoru Python Virtual Environment
 `cd` into the folder with the code and run:
 ```
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate
 ```
 

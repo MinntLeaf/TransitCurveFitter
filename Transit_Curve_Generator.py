@@ -118,7 +118,9 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, DataIncludedErrorBars, Prio
 
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if(DataIncludedErrorBars):
+        #Previousely was :
         CheckedOptimizedChiSqr = (((DataY-flux)/(DataERROR))**2).sum()
+        #CheckedOptimizedChiSqr = (((DataY-flux)**2)/(DataERROR)).sum()
     else:
         CheckedOptimizedChiSqr = ((DataY-flux)**2).sum()
 
@@ -178,7 +180,7 @@ def GetArrayBounds(DataArray):
 
 def CopyStringDataToList(String):
     #Using a whitelist because there are more charchters we want to ignore than we want to use
-    ValidCharachters = ["0","1","2","3","4","5","6","7","8","9","-"]
+    ValidCharachters = ["0","1","2","3","4","5","6","7","8","9",".","-"]
 
     DataList = []
     CurrentString = ""
@@ -238,6 +240,7 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, DataIncludedError
         )
         '''
 
+    #Will try to minimize returned value
     return(1*CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, DataIncludedErrorBars, Priors))
 
 def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
@@ -530,7 +533,8 @@ def RunOptimizationOnDataInputFile(Priors):
     DataY = NewDataValues[1]
     NumberOfDataPoints = NewDataValues[2]
     IndexesRemoved = NewDataValues[3]
-    DataERROR = np.delete(DataERROR,IndexesRemoved)
+    if (len(IndexesRemoved) > 0):
+        DataERROR = np.delete(DataERROR,IndexesRemoved)
 
     #Run third time, this time using lmfit with newly generated starting parameter values
     #And having removed outliers
@@ -635,7 +639,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     DifferenceMin = DiferenceBounds[0]
     DifferenceMax = DiferenceBounds[1]
 
-    DiferenceLimitMax = 3
+    DiferenceLimitMax = 1
     #Conservative 3
     #Reasonable 2
     #High reduction 1.75
@@ -658,8 +662,9 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     IndexesToRemove =   np.array(IndexesToRemove)
 
-    NewDataX = np.delete(NewDataX, IndexesToRemove, 0)
-    NewDataY = np.delete(NewDataY, IndexesToRemove, 0)
+    if(len(IndexesToRemove) > 0):
+        NewDataX = np.delete(NewDataX, IndexesToRemove)
+        NewDataY = np.delete(NewDataY, IndexesToRemove)
 
     NewNumberOfDataPoints = len(DataY)
 

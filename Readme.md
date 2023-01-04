@@ -7,24 +7,36 @@
 This was built using Python 3.10, although any version of Python 3 should work.
 
 ### Data
-Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period 
+Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period of 'pi' and should return aproximately 3.141 when used as inut data.
 
 If you want to use different data, replace the data in the file `Data.txt` with your data.
 
 #### Data Formating
 Data should be input in the format (X Value),(Y Value),(Error).
+
 Commas "," are used as value separators.
-Parenthesis, brackets, spaces, and tabs, will all be ignored.
-A line break signifies a new value pair entry.
-An error value does not need to be supplied, if an Error value is not given for 1 or more data points, it will be ignored for **all** of them.
+
+Numbers "1,2,3" and minus signs "-" will be converted into floating point values. All other charachters will be ignored.
+
+A line break signifies a new (X,Y,Error) entry. Empty lines will be ignored.
+
+An error value does not need to be supplied, however, if an Error value is not given for 1 or more data points, it will be ignored for **all** of them.
+
 
 Examples:
+
 1,2,3
+
 1 , 2 , 3
+
 1     ,2,    3
+
 (1), 2, (3)
+
 1 , 2
-1         ,2
+
+1    ,2
+
 
 
 

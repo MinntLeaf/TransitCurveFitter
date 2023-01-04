@@ -177,6 +177,9 @@ def GetArrayBounds(DataArray):
     return([MinValue, MaxValue])
 
 def CopyStringDataToList(String):
+    #Using a whitelist because there are more charchters we want to ignore than we want to use
+    ValidCharachters = ["0","1","2","3","4","5","6","7","8","9","-"]
+
     DataList = []
     CurrentString = ""
     ValuesFound = 0
@@ -189,7 +192,12 @@ def CopyStringDataToList(String):
             CurrentString = ""
             ValuesFound+=1
         else:
-            if Char != "[" and Char != "]" and Char != " " and Char != "(" and Char != ")" and Char != "    ":
+
+            # Variable in Array/List
+            #Same as C#:
+            #Array/List.contains(Variable)
+
+            if Char in ValidCharachters:
                 CurrentString+=str(Char)
 
     DataList.append(float(CurrentString))

@@ -494,16 +494,7 @@ def RunOptimizationOnDataInputFile(Priors):
     CountTime = False
 
     #Extract parameters used
-    OptimizedParams = batman.TransitParams()
-    OptimizedParams.t0 = LmfitOptimizedFunction.params["t0"].value
-    OptimizedParams.per = LmfitOptimizedFunction.params["per"].value
-    OptimizedParams.rp = LmfitOptimizedFunction.params["rp"].value
-    OptimizedParams.a = LmfitOptimizedFunction.params["a"].value
-    OptimizedParams.inc = LmfitOptimizedFunction.params["inc"].value
-    OptimizedParams.ecc = LmfitOptimizedFunction.params["ecc"].value
-    OptimizedParams.w = LmfitOptimizedFunction.params["w"].value
-    OptimizedParams.u = [LmfitOptimizedFunction.params["u1"].value, LmfitOptimizedFunction.params["u2"].value]
-    OptimizedParams.limb_dark = "quadratic"
+    OptimizedParams = ExtractParametersFromFittedFunction(LmfitOptimizedFunction)
     #Have to manually assign params instead of using 'LmfitOptimizedFunction.params' because 'limb_dark' is not assigned by the function
 
     #Generate function based on extracted parameters
@@ -530,15 +521,18 @@ def RunOptimizationOnDataInputFile(Priors):
     DataX = NewDataValues[0]
     DataY = NewDataValues[1]
     NumberOfDataPoints = NewDataValues[2]
+    IndexesRemoved = NewDataValues[3]
+    DataERROR = np.delete(DataERROR,IndexesRemoved)
 
+    #Run third time, this time using lmfit with newly generated starting parameter values
+    #And having removed outliers
     ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, True, Priors, False, None)
 
-    #Run third time, this time using lmfit with newly generated ideal values
-    CheckTime(True)
+
+    #CheckTime(True)
     LmfitOptimizedFunction = ThirdOptimizedFunction
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
-    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, True, Priors, True, OptimizedParams)
-    CheckTime(False)
+    #CheckTime(False)
 
     DataIncludedErrorBars = True
 
@@ -604,8 +598,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
 
-    print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * StartTime))
-    print("Total Time : " + str(time.time()-ProgramStartTime))
+    EndTimeRecording()
 
     #Display plotted data
     matplot.show()
@@ -625,17 +618,19 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
 
 
-    Differences = (DataY-LightCurve) - StandardDeviation
+    Differences = abs((DataY-LightCurve) - StandardDeviation)
+
+    MeanDifference = Differences.sum()/len(Differences)
 
     DiferenceBounds = GetArrayBounds(Differences)
 
     DifferenceMin = DiferenceBounds[0]
     DifferenceMax = DiferenceBounds[1]
 
-    DiferenceLimit = 0.75
-    #Conservative 0.95
-    #Reasonable 0.9
-    #High reduction 0.75
+    DiferenceLimitMax = 3
+    #Conservative 3
+    #Reasonable 2
+    #High reduction 1.75
 
     Colors = []
 
@@ -643,7 +638,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     Count = 0
     for Difference in Differences:
-        if(Difference > DifferenceMax*DiferenceLimit or Difference < DifferenceMin*DiferenceLimit):
+        if(Difference > (MeanDifference * DiferenceLimitMax * 2)):
             IndexesToRemove.append(Count)
 
             if(TestMode):
@@ -661,11 +656,21 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     NewNumberOfDataPoints = len(DataY)
 
     if(TestMode):
-        for Count in range(len(DataX)):
-            matplot.scatter(DataX[Count] , Differences[Count], color = Colors[Count])
+        CheckTime(True)
+
+        #Difference
+        #matplot.scatter(DataX, Differences, color = Colors)
+
+        #Visual
+        matplot.scatter(DataX , DataY, color = Colors)
+
+        CheckTime(False)
+
+        EndTimeRecording()
+
         matplot.show()
 
-    return(DataX,DataY,NewNumberOfDataPoints)
+    return(NewDataX,NewDataY,NewNumberOfDataPoints, IndexesToRemove)
 
 def ExtractParametersFromFittedFunction(Function):
 
@@ -681,5 +686,9 @@ def ExtractParametersFromFittedFunction(Function):
     ExtractedParameters.limb_dark = "quadratic"
 
     return(ExtractedParameters)
+
+def EndTimeRecording():
+    print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * StartTime))
+    print("Total Time : " + str(time.time()-ProgramStartTime))
 
 RunOptimizationOnDataInputFile(Priors)

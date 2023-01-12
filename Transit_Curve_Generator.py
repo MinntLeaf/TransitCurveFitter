@@ -594,10 +594,10 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Debug Logging
 
-    StringData= []
+    StringData= ""
 
     for i in range(len(DataX)):
-        StringData.append(str(flux[i]) + "\n" )
+        StringData+=(str(DataY[i]) + "\n" )
 
     with open("Output.txt", "w") as File:
         Lines = File.writelines(StringData)

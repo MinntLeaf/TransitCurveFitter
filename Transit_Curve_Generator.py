@@ -119,10 +119,9 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, DataIncludedErrorBars, Prio
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if(DataIncludedErrorBars):
         #Previousely was :
-        CheckedOptimizedChiSqr = (((DataY-flux)/(DataERROR))**2).sum()
-        #CheckedOptimizedChiSqr = (((DataY-flux)**2)/(DataERROR)).sum()
+        CheckedOptimizedChiSqr = (((((DataY-flux)**2))/(DataERROR))).sum()
     else:
-        CheckedOptimizedChiSqr = ((DataY-flux)**2).sum()
+        CheckedOptimizedChiSqr = (((DataY-flux))**2).sum()
 
     if(not Priors == None):
         #Unpackage priors, compare to Params, modify CheckedOptimizedChiSqr based on their comparison
@@ -586,16 +585,28 @@ def RunOptimizationOnDataInputFile(Priors):
     
 
 
+
     SamplePoints = np.linspace(MinX,MaxX,10000)
     m = batman.TransitModel(OptimizedParams, SamplePoints)
     flux = m.light_curve(OptimizedParams)
     matplot.plot(SamplePoints,flux, "-", label="Optimized Function")
 
 
+    #Debug Logging
+
+    StringData= []
+
+    for i in range(len(DataX)):
+        StringData.append(str(flux[i]) + "\n" )
+
+    with open("Output.txt", "w") as File:
+        Lines = File.writelines(StringData)
+
+
 
     print("\n--- Checked Chi Sqr ---")
-    print(CheckedOptimizedChiSqr)
-    #print(str(1.0/NumberOfDataPoints * (CheckedOptimizedChiSqr)**0.5))
+    print("ChiSqr : " + str(CheckedOptimizedChiSqr))
+    print("Number Of Data Points : " + str(NumberOfDataPoints))
     print(str(1.0/NumberOfDataPoints * (CheckedOptimizedChiSqr)))
     print(str(1.0/NumberOfDataPoints * (CheckedOptimizedChiSqr)-1.0000451473151235))
 

@@ -118,8 +118,8 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, DataIncludedErrorBars, Prio
 
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if(DataIncludedErrorBars):
-        #Previousely was :
-        CheckedOptimizedChiSqr = (((((DataY-flux)**2))/(DataERROR))).sum()
+        #Previousely was : CheckedOptimizedChiSqr = (((((DataY-flux)**2))/(DataERROR))).sum()
+        CheckedOptimizedChiSqr = (((DataY-flux)/DataERROR)**2).sum()
     else:
         CheckedOptimizedChiSqr = (((DataY-flux))**2).sum()
 
@@ -378,6 +378,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, DataIncludedErrorBars, P
 #Main function
 def RunOptimizationOnDataInputFile(Priors):
 
+    print("Running. Please wait...")
+
     DataPoints = np.array([[0,0,0]])
 
     #Clear initialized array value, because don't know how to initialize empty array with bounds
@@ -541,14 +543,14 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     #CheckTime(True)
-    LmfitOptimizedFunction = ThirdOptimizedFunction
+    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, False, Priors, True, OptimizedParams)
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
     #CheckTime(False)
 
     DataIncludedErrorBars = True
 
     #Debug Fit Report
-    #print(SecondOptimizedFunction.fit_report())
+    print(LmfitOptimizedFunction.fit_report())
     print("\n")
 
     #Display points with error bars
@@ -581,7 +583,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, DataIncludedErrorBars, Priors)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, False, Priors)
     
 
 

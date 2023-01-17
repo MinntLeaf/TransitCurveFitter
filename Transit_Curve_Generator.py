@@ -1,11 +1,13 @@
 ﻿from cmath import exp, pi, sqrt
 from datetime import time
+from itertools import count
 import time
+from turtle import color
 import numpy as np
 import lmfit as lmfit
 import matplotlib.pyplot as matplot
 
-from lmfit import Model
+from lmfit import Model, fit_report
 
 #Alternative to text boxes that allows right alignment
 from matplotlib.offsetbox import AnchoredText
@@ -82,30 +84,33 @@ def CheckTime(IsStart):
         print("Block Time : "  + str(StartTime));
 
 def ReplaceZerosInArrayWithLowestValue(DataArray):
+    #Replaces zeros in an array with the lowest value present in the array
+    #This is normally used on an array of error values, as values of '0' leed to calculation errors and are improbable
+    #EX: (Input - Output) / Error = Divide By Zero Error
 
         FixedArray = DataArray
 
-        LowestErrorValue = "!"
+        LowestArrayValue = "!"
 
         for Count in range(len(DataArray)):
-            if((LowestErrorValue == "!" or DataArray[Count] < LowestErrorValue) and DataArray[Count] != 0):
-                LowestErrorValue = DataArray[Count]
+            if((LowestArrayValue == "!" or DataArray[Count] < LowestArrayValue) and DataArray[Count] != 0):
+                LowestArrayValue = DataArray[Count]
 
         for Count in range(len(FixedArray)):
             if(FixedArray[Count] == 0):
-                print("'0' Data Error Value At Index : " + str(Count) + " : Replacing With Lowest Recorded Error Value")
+                print("'0' Array Value At Index : " + str(Count) + " : Replacing With Lowest Array Value")
 
-                FixedArray[Count] = LowestErrorValue
+                FixedArray[Count] = LowestArrayValue
 
         return(FixedArray)
 
-GlobaleCount = 0
+GlobalCount = 0
 CountTime = True
-def CalculateChiSqr(DataX, DataY, Params, DataERROR, DataIncludedErrorBars, Priors):
+def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
 
     if(CountTime):
-        global GlobaleCount
-        GlobaleCount+=1
+        global GlobalCount
+        GlobalCount+=1
         #print(GlobaleCount)
 
     
@@ -115,6 +120,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, DataIncludedErrorBars, Prio
 
     CheckedOptimizedChiSqr = 0
 
+    DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
 
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if(DataIncludedErrorBars):
@@ -178,7 +184,7 @@ def GetArrayBounds(DataArray):
     return([MinValue, MaxValue])
 
 def CopyStringDataToList(String):
-    #Using a whitelist because there are more charchters we want to ignore than we want to use
+    #Using a whitelist because there are more charachters we want to ignore than we want to use
     ValidCharachters = ["0","1","2","3","4","5","6","7","8","9",".","-"]
 
     DataList = []
@@ -208,7 +214,7 @@ def CopyStringDataToList(String):
 
     return(DataList)
 
-def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, DataIncludedErrorBars, Priors):
+def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
 
     ParamaterValues = Params.valuesdict()
 
@@ -240,7 +246,7 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, DataIncludedError
         '''
 
     #Will try to minimize returned value
-    return(1*CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, DataIncludedErrorBars, Priors))
+    return(CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, Priors))
 
 def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
 
@@ -261,15 +267,19 @@ def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
 
     return (flux)
 
-def OptimizeFunctionParameters(DataX, DataY, DataERROR, DataIncludedErrorBars, Priors, UseLmfit, StartingParameters):
+def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
     WeightedDataErrorArray = []
 
-    FixedDataERROR = ReplaceZerosInArrayWithLowestValue(DataERROR)
+    DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
+
+    WeightedDataErrorArray
 
     if(DataIncludedErrorBars):
-        WeightedDataErrorArray = (1.0/FixedDataERROR)
+        #Remove zeros from array, an error value of '0' leeds to calculation errors and is improbable
+        WeightedDataErrorArray = (1.0/ReplaceZerosInArrayWithLowestValue(DataERROR))
+
     else:
-        WeightedDataErrorArray = (1.0+0*FixedDataERROR)
+        WeightedDataErrorArray = (1.0+0*DataX)    
 
 
     Bounds = GetArrayBounds(DataX)
@@ -342,7 +352,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, DataIncludedErrorBars, P
             CustomChiSqrInputFunction,
 
             InputParams,
-            args=(DataX,DataY,DataERROR, DataIncludedErrorBars, Priors), 
+            args=(DataX,DataY,DataERROR, Priors), 
             method = "nelder",
             max_nfev=None)
     else:
@@ -455,8 +465,6 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.show()
         time.sleep(1000)
 
-    DataXArray = np.array(DataX)
-
     '''
     FittingTransityFunctionParams = batman.TransitParams()
 
@@ -500,7 +508,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     #First optimization attempt, used to get error values
-    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, False, Priors, False, None)
+    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
     global CountTime
     CountTime = False
@@ -523,7 +531,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Run second time, using newly calculated error values
 
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, True, Priors, False, None)
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
 
     #Extract paramaters from optimized function
     OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
@@ -539,18 +547,18 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Run third time, this time using lmfit with newly generated starting parameter values
     #And having removed outliers
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, True, Priors, False, None)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
 
 
     #CheckTime(True)
-    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, False, Priors, True, OptimizedParams)
+    LmfitOptimizedFunction = ThirdOptimizedFunction
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
     #CheckTime(False)
 
     DataIncludedErrorBars = True
 
     #Debug Fit Report
-    print(LmfitOptimizedFunction.fit_report())
+    print(fit_report(LmfitOptimizedFunction))
     print("\n")
 
     #Display points with error bars
@@ -583,7 +591,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, False, Priors)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, Priors)
     
 
 
@@ -630,7 +638,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
-    TestMode = False
+    TestMode = True
 
     NewDataX = DataX
     NewDataY = DataY
@@ -643,7 +651,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
 
 
-    Differences = abs((DataY-LightCurve) - StandardDeviation)
+    Differences = abs((DataY-LightCurve))
 
     MeanDifference = Differences.sum()/len(Differences)
 
@@ -652,10 +660,10 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     DifferenceMin = DiferenceBounds[0]
     DifferenceMax = DiferenceBounds[1]
 
-    DiferenceLimitMax = 1
-    #Conservative 3
-    #Reasonable 2
-    #High reduction 1.75
+    DiferenceLimitMax = 4
+    #Conservative 6
+    #Reasonable 4
+    #High reduction 3.5
 
     Colors = []
 
@@ -663,14 +671,16 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     Count = 0
     for Difference in Differences:
-        if(Difference > (MeanDifference * DiferenceLimitMax * 2)):
+        #If diference between the input YValue and the models YValue is greater than the mean diference of all data points * 'DiferenceLimitMax'
+        #Then remove the data point
+        if((Difference-StandardDeviation) > (MeanDifference*DiferenceLimitMax)):
             IndexesToRemove.append(Count)
 
             if(TestMode):
-                Colors.append("red")
+                Colors.append((0.5,0,0,0.75))
         else:
             if(TestMode):
-                Colors.append("green")
+                Colors.append((0, 0.5,0,0.75))
         Count+=1
 
     IndexesToRemove =   np.array(IndexesToRemove)
@@ -682,13 +692,33 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     NewNumberOfDataPoints = len(DataY)
 
     if(TestMode):
+        #Will plot all input data points, green if not removed, red if removed
         CheckTime(True)
 
-        #Difference
-        #matplot.scatter(DataX, Differences, color = Colors)
+        PlotType = 1
 
-        #Visual
-        matplot.scatter(DataX , DataY, color = Colors)
+        if(PlotType == 0):
+            #Difference Value
+            #matplot.scatter(DataX, Differences, color = Colors)
+
+            #X,Y Value
+            matplot.scatter(DataX , DataY, color = Colors)
+        else:
+            if(PlotType == 1):
+                #GradientColors = (colo)
+                HeatMapColors = []
+                Count = 0
+                for Difference in Differences:
+                    if(not( (Difference-StandardDeviation) > (MeanDifference*DiferenceLimitMax))):
+                        HeatMapColors.append((1,0,0,Clamp((1.0/(MeanDifference*DiferenceLimitMax) * (Difference-StandardDeviation)),0.0,1.0)))
+                    else:
+                        HeatMapColors.append((1.0,0.647,0,0.9))
+
+                matplot.scatter(DataX , DataY, color=HeatMapColors)
+
+
+
+
 
         CheckTime(False)
 
@@ -712,6 +742,9 @@ def ExtractParametersFromFittedFunction(Function):
     ExtractedParameters.limb_dark = "quadratic"
 
     return(ExtractedParameters)
+
+def GetArrayIsNotNone(InputArray):
+    return(InputArray is not None)
 
 def EndTimeRecording():
     print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * StartTime))

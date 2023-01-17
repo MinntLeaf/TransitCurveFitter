@@ -1,0 +1,14 @@
+How to calculate ChiSqr with errors, confirm Chisqr formula is corect
+
+Fitting Methods:
+	Currently using "Nelder-Mead"
+	Because:
+		Allows for single output value to minimize (as opposed to array)
+		Least sqr is likely a better option, but requires an array of output points
+		It then performs chisqr calculations on the ouput values and the input values
+		This means we can't directly modify the Chisqr value (EX: To include priors), which is a problem
+	Thoughts:
+		Being able to modify the final Chisqr like we are right now is helpfull as it allows me to better understand the process since I have direct control over it
+		And it allows me to implement priors
+		However, it is likely worse at producing a high precision fitted curve, because condensing all the infomration from the graph into a single value throws out a lot of infomration that is usfull for the fitting algorythym
+		With the current system it is dificuilt for the system to glean information as it randomly picks values, snce it is only given a final number that is only minorly affected by the value of any given point

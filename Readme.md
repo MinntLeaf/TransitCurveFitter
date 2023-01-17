@@ -7,11 +7,13 @@
 This was built using Python 3.10, although any version of Python 3 should work.
 
 ### Data
-Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period of 'pi' and should return aproximately 3.141 when used as inut data.
+
+Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period of 'pi' and should return a period of aproximately 3.141 when used as input data.
 
 If you want to use different data, replace the data in the file `Data.txt` with your data.
 
 #### Data Formating
+
 Data should be input in the format (X Value),(Y Value),(Error).
 
 Commas "," are used as value separators.
@@ -25,18 +27,19 @@ An error value does not need to be supplied, however, if an Error value is not g
 
 Examples:
 
-1,2,3
+ - 1,2,-3
 
-1 , 2 , 3
+ - 1 , 2 ,- 3
 
-1     ,2,    3
+ - 1     ,2,-  hello  3
 
-(1), 2, (3)
+ - (1), 2, -(3)
 
-1 , 2
+ - 1 , [2],-3hello
 
-1    ,2
+ - 1    ,2,-3
 
+All will be interpreted as 1,2,-3
 
 
 

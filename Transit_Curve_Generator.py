@@ -1,22 +1,27 @@
 ﻿from cmath import exp, pi, sqrt
 from datetime import time
-from itertools import count
 import time
-from turtle import color
 import numpy as np
+
+#Curve fitting package
 import lmfit as lmfit
-import matplotlib.pyplot as matplot
-
 from lmfit import Model, fit_report
-
-#Alternative to text boxes that allows right alignment
-from matplotlib.offsetbox import AnchoredText
-
-import batman
 
 #important distinction
 from lmfit import Parameters
 from lmfit import Parameter
+
+
+#Graph rendering package
+import matplotlib.pyplot as matplot
+
+#Alternative to text boxes that allows right alignment
+from matplotlib.offsetbox import AnchoredText
+
+
+#Transit curve calculation package
+import batman
+
 
 #Only used for testing
 import random
@@ -27,6 +32,8 @@ import cProfile
 
 
 #If supplied, will be used as initial fitting parameters
+#First array element is value, second is certainty
+#If either value is missing from an element, both elements will be ignored
 Priors = [
           [0.96,None], #t0
           [3.14159265,None], #per
@@ -40,7 +47,7 @@ Priors = [
           ]
 
 #Visual modifier only
-DataPointRenderSize = 2
+DataPointRenderSize = 1
 #Suggested Values:
 #0.4, apears as point cloud, easy to see function line
 #2, larger than error bar, easy to see points when error value is high
@@ -129,7 +136,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
     else:
         CheckedOptimizedChiSqr = (((DataY-flux))**2).sum()
 
-    if(not Priors == None):
+    if(Priors is not None):
         #Unpackage priors, compare to Params, modify CheckedOptimizedChiSqr based on their comparison
 
         if(not Priors[0][0] == None and not Priors[0][1] == None):
@@ -272,14 +279,15 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 
     DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
 
-    WeightedDataErrorArray
+    WeightedDataErrorArray = None
 
     if(DataIncludedErrorBars):
         #Remove zeros from array, an error value of '0' leeds to calculation errors and is improbable
         WeightedDataErrorArray = (1.0/ReplaceZerosInArrayWithLowestValue(DataERROR))
 
-    else:
-        WeightedDataErrorArray = (1.0+0*DataX)    
+    #else:
+    #    WeightedDataErrorArray = (1.0+0*DataX)    
+    #   Lmfit should interpret a passed value of 'None' as a lack of weights value, which should weight them all equally
 
 
     Bounds = GetArrayBounds(DataX)
@@ -289,7 +297,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 
 
     InputParams = lmfit.Parameters()
-    if(UseLmfit and not StartingParameters == None):
+    if(UseLmfit and StartingParameters is not None):
         #Lmfit version
         InputParams.add("t0", value=StartingParameters.t0, min = MinX, max = MaxX) #Max?
         InputParams.add("per", value=StartingParameters.per, min = 0.0, max = MaxX)
@@ -313,7 +321,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
         InitialValue_u1 = 0.0
         InitialValue_u2 = 0.0
 
-        if(not Priors == None):
+        if(Priors is not None):
             if(not Priors[0] == None):
                 InitialValue_t0 = Priors[0][0]
             if(not Priors[1] == None):
@@ -344,10 +352,10 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
         InputParams.add("u2", value=InitialValue_u2, min = -1.0, max = 1.0)
         
 
-    LmfitOptimizedFunction = None
+    OptimizedFunctionToReturn = None
 
     if(not UseLmfit):
-        LmfitOptimizedFunction = lmfit.minimize(
+        OptimizedFunctionToReturn = lmfit.minimize(
         
             CustomChiSqrInputFunction,
 
@@ -356,7 +364,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
             method = "nelder",
             max_nfev=None)
     else:
-        LmfitOptimizedFunction = Model(LmfitInputFunction).fit(
+        OptimizedFunctionToReturn = Model(LmfitInputFunction).fit(
             DataY, x=DataX,
 
             t0=Parameter("t0", value=StartingParameters.t0, min = MinX, max = MaxX),

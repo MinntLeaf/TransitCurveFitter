@@ -112,13 +112,13 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
         return(FixedArray)
 
 GlobalCount = 0
-CountTime = True
+CountTime = False
 def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
 
     if(CountTime):
         global GlobalCount
         GlobalCount+=1
-        #print(GlobaleCount)
+        print(GlobalCount)
 
     
 
@@ -389,7 +389,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
         '''
 
 
-    return(LmfitOptimizedFunction)
+    return(OptimizedFunctionToReturn)
 
 
 
@@ -433,7 +433,6 @@ def RunOptimizationOnDataInputFile(Priors):
 
     NumberOfDataPoints = len(DataPoints)
 
-
     for Count in range(NumberOfDataPoints):
         ListDataX.append(DataPoints[Count][0])
 
@@ -473,57 +472,17 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.show()
         time.sleep(1000)
 
-    '''
-    FittingTransityFunctionParams = batman.TransitParams()
 
-    #Initialize params with placeholder values, these will be overridden imediately and will not be used
-    #Need to be realistic in order to generate a reasonable step size, uses priors if supplied
-    FittingTransityFunctionParams.t0 = 0.96
-    FittingTransityFunctionParams.per = 3.1
-    FittingTransityFunctionParams.rp = 0.118
-    FittingTransityFunctionParams.a = 15.0
-    FittingTransityFunctionParams.inc = 87.0
-    FittingTransityFunctionParams.ecc = 0.0
-    FittingTransityFunctionParams.w = 90.0
-    FittingTransityFunctionParams.limb_dark = "quadratic"
-    FittingTransityFunctionParams.u = [0.5, 0.1]
-
-    if(not Priors == None):
-        if(not Priors[0][0] == None):
-            FittingTransityFunctionParams.t0 = Priors[0][0]
-        if(not Priors[1][0] == None):
-            FittingTransityFunctionParams.per = Priors[1][0]
-        if(not Priors[2][0] == None):
-            FittingTransityFunctionParams.rp = Priors[2][0]
-        if(not Priors[3][0] == None):
-            FittingTransityFunctionParams.a = Priors[3][0]
-        if(not Priors[4][0] == None):
-            FittingTransityFunctionParams.inc = Priors[4][0]
-        if(not Priors[5][0] == None):
-            FittingTransityFunctionParams.ecc = Priors[5][0]
-        if(not Priors[6][0] == None):
-            FittingTransityFunctionParams.w = Priors[6][0]
-        UParameters = [FittingTransityFunctionParams.u[0],FittingTransityFunctionParams.u[1]]
-        if(not Priors[7][0] == None):
-            UParameters[0] = Priors[7][0]
-        if(not Priors[7][0] == None):
-            UParameters[1] = Priors[8][0]
-        FittingTransityFunctionParams.u = UParameters
-
-    '''
-
-    #FitModelFunction = batman.TransitModel(FittingTransityFunctionParams, DataXArray)
 
 
     #First optimization attempt, used to get error values
-    LmfitOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
     global CountTime
     CountTime = False
 
     #Extract parameters used
-    OptimizedParams = ExtractParametersFromFittedFunction(LmfitOptimizedFunction)
-    #Have to manually assign params instead of using 'LmfitOptimizedFunction.params' because 'limb_dark' is not assigned by the function
+    OptimizedParams = ExtractParametersFromFittedFunction(OptimizedFunction)
 
     #Generate function based on extracted parameters
     FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
@@ -559,14 +518,14 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     #CheckTime(True)
-    LmfitOptimizedFunction = ThirdOptimizedFunction
+    FinalOptimizedFunction = ThirdOptimizedFunction
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
     #CheckTime(False)
 
     DataIncludedErrorBars = True
 
     #Debug Fit Report
-    print(fit_report(LmfitOptimizedFunction))
+    print(fit_report(FinalOptimizedFunction))
     print("\n")
 
     #Display points with error bars
@@ -578,25 +537,13 @@ def RunOptimizationOnDataInputFile(Priors):
     print("-OPTIMIZED PARAMETERS-")
     parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
     for name in parameter_names:
-        print(name + ' : ' + str(LmfitOptimizedFunction.params[name].value))
+        print(name + ' : ' + str(FinalOptimizedFunction.params[name].value))
     print("\n")
 
     print("-OPTIMIZED PARAMETER UNCERTAINTY VALUES-")
     for name in parameter_names:
-        print(name + ' : ' + str(LmfitOptimizedFunction.params[name].stderr))
+        print(name + ' : ' + str(FinalOptimizedFunction.params[name].stderr))
     print("\n")
-
-    OptimizedParams = batman.TransitParams()
-    OptimizedParams.t0 = LmfitOptimizedFunction.params["t0"].value
-    OptimizedParams.per = LmfitOptimizedFunction.params["per"].value
-    OptimizedParams.rp = LmfitOptimizedFunction.params["rp"].value
-    OptimizedParams.a = LmfitOptimizedFunction.params["a"].value
-    OptimizedParams.inc = LmfitOptimizedFunction.params["inc"].value
-    OptimizedParams.ecc = LmfitOptimizedFunction.params["ecc"].value
-    OptimizedParams.w = LmfitOptimizedFunction.params["w"].value
-    OptimizedParams.u = [LmfitOptimizedFunction.params["u1"].value, LmfitOptimizedFunction.params["u2"].value]
-    OptimizedParams.limb_dark = "quadratic"
-
 
 
     CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, Priors)
@@ -647,6 +594,8 @@ def RunOptimizationOnDataInputFile(Priors):
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     TestMode = True
+    #Only valid if 'TestMode' is active
+    OverlayMode = True
 
     NewDataX = DataX
     NewDataY = DataY
@@ -710,6 +659,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
             #matplot.scatter(DataX, Differences, color = Colors)
 
             #X,Y Value
+            
             matplot.scatter(DataX , DataY, color = Colors)
         else:
             if(PlotType == 1):
@@ -722,7 +672,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                     else:
                         HeatMapColors.append((1.0,0.647,0,0.9))
 
-                matplot.scatter(DataX , DataY, color=HeatMapColors)
+                matplot.scatter(DataX ,DataY, color=HeatMapColors)
 
 
 
@@ -732,11 +682,14 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         EndTimeRecording()
 
-        matplot.show()
+        if(not OverlayMode):
+            matplot.show()
 
     return(NewDataX,NewDataY,NewNumberOfDataPoints, IndexesToRemove)
 
 def ExtractParametersFromFittedFunction(Function):
+
+    #Have to manually assign params instead of using 'OptimizedFunction.params' because 'limb_dark' is not assigned by the function
 
     ExtractedParameters = batman.TransitParams()
     ExtractedParameters.t0 = Function.params["t0"].value

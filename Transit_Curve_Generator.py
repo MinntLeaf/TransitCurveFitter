@@ -649,18 +649,20 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     NewNumberOfDataPoints = len(DataY)
 
     if(TestMode):
-        #Will plot all input data points, green if not removed, red if removed
         CheckTime(True)
 
         PlotType = 1
 
         if(PlotType == 0):
+            #Will plot all input data points, green if not removed, red if removed
+
+
             #Difference Value
             #matplot.scatter(DataX, Differences, color = Colors)
 
             #X,Y Value
-            
             matplot.scatter(DataX , DataY, color = Colors)
+
         else:
             if(PlotType == 1):
                 #GradientColors = (colo)

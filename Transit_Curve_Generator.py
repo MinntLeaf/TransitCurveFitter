@@ -522,7 +522,7 @@ def RunOptimizationOnDataInputFile(Priors):
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
     #CheckTime(False)
 
-    DataIncludedErrorBars = True
+    DataIncludedErrorBars = False
 
     #Debug Fit Report
     print(fit_report(FinalOptimizedFunction))
@@ -595,6 +595,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     TestMode = True
     #Only valid if 'TestMode' is active
+    #will not halt further execution of the program, instead overlaying the scatter avlues or heat map underneath the final graph
     OverlayMode = True
 
     NewDataX = DataX
@@ -648,6 +649,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     NewNumberOfDataPoints = len(DataY)
 
+    #Debug visuals
     if(TestMode):
         CheckTime(True)
 
@@ -665,7 +667,6 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         else:
             if(PlotType == 1):
-                #GradientColors = (colo)
                 HeatMapColors = []
                 Count = 0
                 for Difference in Differences:

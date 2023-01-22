@@ -275,7 +275,6 @@ def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
     return (flux)
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
-    WeightedDataErrorArray = []
 
     DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
 
@@ -478,9 +477,6 @@ def RunOptimizationOnDataInputFile(Priors):
     #First optimization attempt, used to get error values
     OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
-    global CountTime
-    CountTime = False
-
     #Extract parameters used
     OptimizedParams = ExtractParametersFromFittedFunction(OptimizedFunction)
 
@@ -503,6 +499,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Extract paramaters from optimized function
     OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
 
+    #Remove Outlier values
     NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
 
     DataX = NewDataValues[0]
@@ -512,17 +509,14 @@ def RunOptimizationOnDataInputFile(Priors):
     if (len(IndexesRemoved) > 0):
         DataERROR = np.delete(DataERROR,IndexesRemoved)
 
-    #Run third time, this time using lmfit with newly generated starting parameter values
-    #And having removed outliers
+    #Run third time, this time having removed outliers
     ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
 
 
-    #CheckTime(True)
     FinalOptimizedFunction = ThirdOptimizedFunction
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
-    #CheckTime(False)
 
-    DataIncludedErrorBars = True
+    DataIncludedErrorBars = False
 
     #Debug Fit Report
     print(fit_report(FinalOptimizedFunction))
@@ -593,9 +587,10 @@ def RunOptimizationOnDataInputFile(Priors):
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
-    TestMode = True
+    TestMode = False
     #Only valid if 'TestMode' is active
-    OverlayMode = True
+    OverlayMode = False
+    HighlightBoundsMode = True
 
     NewDataX = DataX
     NewDataY = DataY
@@ -617,20 +612,31 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     DifferenceMin = DiferenceBounds[0]
     DifferenceMax = DiferenceBounds[1]
 
-    DiferenceLimitMax = 4
-    #Conservative 6
-    #Reasonable 4
-    #High reduction 3.5
+    #Should not be set below 1
+    DiferenceLimitMultiplier = 2
+    #Conservative 4
+    #Reasonable 2
+    #High reduction 1
 
     Colors = []
 
     IndexesToRemove = []
 
+    MaxDifferenceAllowed = MeanDifference*2*DiferenceLimitMultiplier
+
     Count = 0
     for Difference in Differences:
-        #If diference between the input YValue and the models YValue is greater than the mean diference of all data points * 'DiferenceLimitMax'
+        #If diference between the input YValue and the models YValue is greater than the mean diference of all data points * 2 * 'DiferenceLimitMultiplier'
         #Then remove the data point
-        if((Difference-StandardDeviation) > (MeanDifference*DiferenceLimitMax)):
+
+        #Justification
+        #On average, all points should be between 0 * mean and  2 * mean
+        #Thus the mean is in between 0 and 2 times any given value
+        #So multiplying the mean diference value by 2 should cover all 'average' data points
+        #Multiplying this new value by the 'DiferenceLimitMultiplier' increases the valid bounds to increase the error tolerance
+        #This allows for fine tuning, as all values will not likely fit between 0, and 2 times the mean
+
+        if((Difference) > MaxDifferenceAllowed):
             IndexesToRemove.append(Count)
 
             if(TestMode):
@@ -669,15 +675,26 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                 HeatMapColors = []
                 Count = 0
                 for Difference in Differences:
-                    if(not( (Difference-StandardDeviation) > (MeanDifference*DiferenceLimitMax))):
-                        HeatMapColors.append((1,0,0,Clamp((1.0/(MeanDifference*DiferenceLimitMax) * (Difference-StandardDeviation)),0.0,1.0)))
+                    if(not( (Difference) > MaxDifferenceAllowed)):
+                        HeatMapColors.append((1,0,0,Clamp((1.0/MaxDifferenceAllowed * (Difference)),0.0,1.0)))
                     else:
                         HeatMapColors.append((1.0,0.647,0,0.9))
 
-                matplot.scatter(DataX ,DataY, color=HeatMapColors)
+                matplot.scatter(DataX ,DataY, color=HeatMapColors, s = 8)
 
+        
+        if(HighlightBoundsMode):
+            XBounds = GetArrayBounds(DataX)
 
+            SamplePoints = np.linspace(XBounds[0],XBounds[1],10000)
+            m = batman.TransitModel(Parameters, SamplePoints)
+            LightCurve = m.light_curve(Parameters)
 
+            matplot.plot(SamplePoints,LightCurve, "-", color="yellow")
+            matplot.plot(SamplePoints,LightCurve + MaxDifferenceAllowed, "-", color="green")
+            matplot.plot(SamplePoints,LightCurve - MaxDifferenceAllowed, "-", color="green")
+                
+                
 
 
         CheckTime(False)
@@ -686,6 +703,14 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         if(not OverlayMode):
             matplot.show()
+
+        #Results Interpretation:
+
+        #Green lines are bounds in which points are allowd, points that do not fall between these lines will be removed
+        #Yellow line is the fitted line, it's y values are what the points are being compared to
+        #Orange points have been removed
+        #Red points have not been removed, the transparency of their color indicates how close they are to being removed. Dark red ones are close to the limit, almost clear ones are close to their expected values.
+        #Note ^ points overlayed on top of eachother will stack their transparencies, resulting in dark coolors even if they are not close to the border. Zoom in on the graph if you wish to acurately see the colors of points that are overlaping one another.
 
     return(NewDataX,NewDataY,NewNumberOfDataPoints, IndexesToRemove)
 

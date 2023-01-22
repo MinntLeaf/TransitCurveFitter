@@ -589,7 +589,11 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     TestMode = False
     #Only valid if 'TestMode' is active
+
+    #will not halt further execution of the program, instead overlaying the scatter avlues or heat map underneath the final graph
     OverlayMode = False
+
+    #Show limits are allowed between
     HighlightBoundsMode = True
 
     NewDataX = DataX
@@ -654,6 +658,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     NewNumberOfDataPoints = len(DataY)
 
+    #Debug visuals
     if(TestMode):
         CheckTime(True)
 
@@ -671,7 +676,6 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         else:
             if(PlotType == 1):
-                #GradientColors = (colo)
                 HeatMapColors = []
                 Count = 0
                 for Difference in Differences:

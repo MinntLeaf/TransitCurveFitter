@@ -79,37 +79,40 @@ if(TestMode):
 
 
 
+StartTimes = []
 ProgramStartTime = time.time()
-StartTime = 0
-def CheckTime(IsStart):
+def CheckTime(ID, IsStart):
+    global StartTimes
     if(IsStart):
-        global StartTime
-        StartTime = time.time()
+        if(len(StartTimes) <= ID):
+            StartTimes.append(time.time())
+        else:
+            StartTimes[ID] = time.time()
     else:
         #Is end
-        StartTime = time.time()-StartTime
-        print("Block Time : "  + str(StartTime));
+        print("Block Time ID :",str(ID)," : Time :", str(time.time()-StartTimes[ID]));
 
 def ReplaceZerosInArrayWithLowestValue(DataArray):
+
     #Replaces zeros in an array with the lowest value present in the array
     #This is normally used on an array of error values, as values of '0' leed to calculation errors and are improbable
     #EX: (Input - Output) / Error = Divide By Zero Error
 
-        FixedArray = DataArray
+    FixedArray = DataArray
 
-        LowestArrayValue = "!"
+    LowestArrayValue = "!"
 
-        for Count in range(len(DataArray)):
-            if((LowestArrayValue == "!" or DataArray[Count] < LowestArrayValue) and DataArray[Count] != 0):
-                LowestArrayValue = DataArray[Count]
+    for Count in range(len(DataArray)):
+        if((LowestArrayValue == "!" or DataArray[Count] < LowestArrayValue) and DataArray[Count] != 0):
+            LowestArrayValue = DataArray[Count]
 
-        for Count in range(len(FixedArray)):
-            if(FixedArray[Count] == 0):
-                print("'0' Array Value At Index : " + str(Count) + " : Replacing With Lowest Array Value")
+    for Count in range(len(FixedArray)):
+        if(FixedArray[Count] == 0):
+            print("'0' Array Value At Index : " + str(Count) + " : Replacing With Lowest Array Value")
 
-                FixedArray[Count] = LowestArrayValue
+            FixedArray[Count] = LowestArrayValue
 
-        return(FixedArray)
+    return(FixedArray)
 
 GlobalCount = 0
 CountTime = False
@@ -276,6 +279,7 @@ def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
 
+
     DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
 
     WeightedDataErrorArray = None
@@ -283,6 +287,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
     if(DataIncludedErrorBars):
         #Remove zeros from array, an error value of '0' leeds to calculation errors and is improbable
         WeightedDataErrorArray = (1.0/ReplaceZerosInArrayWithLowestValue(DataERROR))
+
 
     #else:
     #    WeightedDataErrorArray = (1.0+0*DataX)    
@@ -472,8 +477,7 @@ def RunOptimizationOnDataInputFile(Priors):
         time.sleep(1000)
 
 
-
-
+    # - 2s
     #First optimization attempt, used to get error values
     OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
@@ -494,7 +498,11 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Run second time, using newly calculated error values
 
+    CheckTime(0,True)
+    # - 6s
+    #Why?
     SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
+    CheckTime(0,False)
 
     #Extract paramaters from optimized function
     OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
@@ -566,8 +574,7 @@ def RunOptimizationOnDataInputFile(Priors):
     print("\n--- Checked Chi Sqr ---")
     print("ChiSqr : " + str(CheckedOptimizedChiSqr))
     print("Number Of Data Points : " + str(NumberOfDataPoints))
-    print(str(1.0/NumberOfDataPoints * (CheckedOptimizedChiSqr)))
-    print(str(1.0/NumberOfDataPoints * (CheckedOptimizedChiSqr)-1.0000451473151235))
+    print("ChiSqr / # Data Points : " + str(CheckedOptimizedChiSqr/NumberOfDataPoints))
 
     #Fixed "χ2" rendering issue
     BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr,2))
@@ -660,7 +667,6 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     #Debug visuals
     if(TestMode):
-        CheckTime(True)
 
         PlotType = 1
 
@@ -701,9 +707,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                 
 
 
-        CheckTime(False)
 
-        EndTimeRecording()
 
         if(not OverlayMode):
             matplot.show()
@@ -739,7 +743,16 @@ def GetArrayIsNotNone(InputArray):
     return(InputArray is not None)
 
 def EndTimeRecording():
-    print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * StartTime))
+
+    global StartTimes
+    global ProgramStartTime
+
+    if(len(StartTimes) > 0):
+        print("----- Block Percents Of Total Time -----")
+        for BlockTime in StartTimes:
+            print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * BlockTime))
+        
+    print("\n----- Total Time -----")
     print("Total Time : " + str(time.time()-ProgramStartTime))
 
 RunOptimizationOnDataInputFile(Priors)

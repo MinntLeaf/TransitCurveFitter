@@ -27,17 +27,17 @@ An error value does not need to be supplied, however, if an Error value is not g
 
 Examples:
 
- - 1,2,-3
+   1,2,-3
 
- - 1 , 2 ,- 3
+   1 , 2 ,- 3
 
- - 1     ,2,-  hello  3
+   1     ,2,-  hello  3
 
- - (1), 2, -(3)
+   (1), 2, -(3)
 
- - 1 , [2],-3hello
+   1 , [2],-3hello
 
- - 1    ,2,-3
+   1    ,2,-3
 
 All will be interpreted as 1,2,-3
 

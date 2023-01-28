@@ -7,7 +7,7 @@ import numpy as np
 import lmfit as lmfit
 from lmfit import Model, fit_report
 
-#important distinction
+#Important distinction
 from lmfit import Parameters
 from lmfit import Parameter
 
@@ -80,9 +80,17 @@ if(TestMode):
 
 
 StartTimes = []
+EndTimes = []
 ProgramStartTime = time.time()
 def CheckTime(ID, IsStart):
+    #used to check how long a section of code took to run
+    #Purely for debug
+
+    #Can now support multiple checked blocks
+    #Specify "ID" (int) of a block when starting and ending recording to separate them
+
     global StartTimes
+    global EndTimes
     if(IsStart):
         if(len(StartTimes) <= ID):
             StartTimes.append(time.time())
@@ -90,7 +98,8 @@ def CheckTime(ID, IsStart):
             StartTimes[ID] = time.time()
     else:
         #Is end
-        print("Block Time ID :",str(ID)," : Time :", str(time.time()-StartTimes[ID]));
+        print("Block Time ID :",str(ID),": Time :", str(time.time()-StartTimes[ID]));
+        EndTimes.append(time.time())
 
 def ReplaceZerosInArrayWithLowestValue(DataArray):
 
@@ -169,6 +178,8 @@ def ReturnChiModiferOfParameterPrior(Param, Prior, PriorERROR):
     return(((Param-Prior)/PriorERROR)**2)
 
 def Clamp(Value, Min, Max):
+    #Should replace with external package
+
     if(Value < Min):
         return(Min)
     if(Value > Max):
@@ -400,7 +411,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 #Main function
 def RunOptimizationOnDataInputFile(Priors):
 
-    print("Running. Please wait...")
+    print("Running. Please wait...\n")
 
     DataPoints = np.array([[0,0,0]])
 
@@ -476,10 +487,11 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.show()
         time.sleep(1000)
 
-
-    # - 2s
+    CheckTime(0,True)
+    # - 5.2s
     #First optimization attempt, used to get error values
     OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    CheckTime(0,False)
 
     #Extract parameters used
     OptimizedParams = ExtractParametersFromFittedFunction(OptimizedFunction)
@@ -488,24 +500,31 @@ def RunOptimizationOnDataInputFile(Priors):
     FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
 
     #Calculate error from diference between first attempt created function, and given values
+    if(not DataIncludedErrorBars):
+        #I think "abs" should not be used here, the square of the values is being used instead. Not sure why abs affects the result in this case, but it does.
+        DataERROR = (DataY*0 + np.std((DataY-FirstOptimizedFunction.light_curve(OptimizedParams))))
+        #CheckChiSqr function expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
 
-    #Should abs be used?
-    DataERROR = (DataY*0 + np.std(DataY-FirstOptimizedFunction.light_curve(OptimizedParams)))
-    #CheckChiSqr funciton expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
+        #Debug logging
+        #print(np.std((DataY-FirstOptimizedFunction.light_curve(OptimizedParams))))
+
+
 
     #data-model
     #stder(data-model)
 
     #Run second time, using newly calculated error values
 
-    CheckTime(0,True)
-    # - 6s
+    CheckTime(1,True)
+    # - 5.2s
     #Why?
+    #Including error values appears to increase run time signoficantly
     SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
-    CheckTime(0,False)
+    CheckTime(1,False)
 
     #Extract paramaters from optimized function
     OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
+
 
     #Remove Outlier values
     NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
@@ -517,14 +536,36 @@ def RunOptimizationOnDataInputFile(Priors):
     if (len(IndexesRemoved) > 0):
         DataERROR = np.delete(DataERROR,IndexesRemoved)
 
+
+
+    #Recalculate error
+    #If data did not include errors, and outliers have just been removed
+    if(not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
+
+        #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
+        UpdatedLightValues = np.delete(FirstOptimizedFunction.light_curve(OptimizedParams),IndexesRemoved)
+
+        #Recalcualte error values with the outlier values removed
+        DataERROR = (DataY*0 + np.std((DataY-UpdatedLightValues)))
+
+
     #Run third time, this time having removed outliers
+    CheckTime(2,True)
+    # - 3.5s
+    #Why shorter than the other OptimizeFunctionParameters() calls?
     ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
+    CheckTime(2,False)
 
 
     FinalOptimizedFunction = ThirdOptimizedFunction
     OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
+    
 
-    DataIncludedErrorBars = False
+    #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
+    #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
+    DataIncludedErrorBars = True
+
+
 
     #Debug Fit Report
     print(fit_report(FinalOptimizedFunction))
@@ -532,7 +573,11 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Display points with error bars
     if(DataIncludedErrorBars):
-        matplot.errorbar(DataX, DataY, yerr = DataERROR, fmt ="o", markersize = DataPointRenderSize)
+        #Disabled for now
+        #Concerned the 'yerr' value being set to the DataERROR value is not an acurate representation of the points error
+
+        #matplot.errorbar(DataX, DataY, yerr = DataERROR, fmt ="o", markersize = DataPointRenderSize)
+        matplot.errorbar(DataX, DataY, fmt ="o", markersize = DataPointRenderSize)
     else:
         matplot.errorbar(DataX, DataY, fmt ="o", markersize = DataPointRenderSize)
 
@@ -552,20 +597,28 @@ def RunOptimizationOnDataInputFile(Priors):
     
 
 
-
+    #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX,MaxX,10000)
     m = batman.TransitModel(OptimizedParams, SamplePoints)
     flux = m.light_curve(OptimizedParams)
     matplot.plot(SamplePoints,flux, "-", label="Optimized Function")
 
 
-    #Debug Logging
+    #Debug Logging START
 
     StringData= ""
 
-    for i in range(len(DataX)):
-        StringData+=(str(DataY[i]) + "\n" )
+    DebugFlux =  batman.TransitModel(OptimizedParams, DataX).light_curve(OptimizedParams)
 
+    for i in range(len(DataX)):
+        StringData+=(str(DebugFlux[i]) + "\n" )
+    '''
+    print("-----")
+
+    print(str(np.std((DataY-DebugFlux))))
+
+    print("-----")
+    '''
     with open("Output.txt", "w") as File:
         Lines = File.writelines(StringData)
 
@@ -574,11 +627,16 @@ def RunOptimizationOnDataInputFile(Priors):
     print("\n--- Checked Chi Sqr ---")
     print("ChiSqr : " + str(CheckedOptimizedChiSqr))
     print("Number Of Data Points : " + str(NumberOfDataPoints))
+    #The value below should be close to '1'
     print("ChiSqr / # Data Points : " + str(CheckedOptimizedChiSqr/NumberOfDataPoints))
+
+    #Debug Logging END
+
 
     #Fixed "χ2" rendering issue
     BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr,2))
 
+    #Text box setup
     ChiAnchoredTextBox = AnchoredText(BestChi
                                     , loc=4, pad=0.5)
     matplot.setp(ChiAnchoredTextBox.patch, facecolor="Orange", alpha=0.5)
@@ -589,7 +647,10 @@ def RunOptimizationOnDataInputFile(Priors):
 
     EndTimeRecording()
 
+    print("\nCompleted")
+
     #Display plotted data
+    #Will 'end' program, code after this function is called will not be run (this behavior can be changed)
     matplot.show()
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
@@ -663,7 +724,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         NewDataX = np.delete(NewDataX, IndexesToRemove)
         NewDataY = np.delete(NewDataY, IndexesToRemove)
 
-    NewNumberOfDataPoints = len(DataY)
+    NewNumberOfDataPoints = len(NewDataY)
 
     #Debug visuals
     if(TestMode):
@@ -720,6 +781,16 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         #Red points have not been removed, the transparency of their color indicates how close they are to being removed. Dark red ones are close to the limit, almost clear ones are close to their expected values.
         #Note ^ points overlayed on top of eachother will stack their transparencies, resulting in dark coolors even if they are not close to the border. Zoom in on the graph if you wish to acurately see the colors of points that are overlaping one another.
 
+    if(NewNumberOfDataPoints + len(IndexesToRemove) != len(DataY)):
+        #New number of datapoints value given is not equal to the original number minus those removed
+        #This means there is an issue with the 'RemoveOutliersFromDataSet' function
+        print("ERROR : RemoveOutliersFromDataSet() returned an improper value")
+
+        #This check is here because small diferences in the actual number of data values [len(DataX)] and the recorded number of data points [NumberOfDataPoints] values can easilly go unoticed and lead to inacurate ChiSqr values down the line
+
+        #Stop, definitely better way to do this
+        time.sleep(99999)
+
     return(NewDataX,NewDataY,NewNumberOfDataPoints, IndexesToRemove)
 
 def ExtractParametersFromFittedFunction(Function):
@@ -740,19 +811,23 @@ def ExtractParametersFromFittedFunction(Function):
     return(ExtractedParameters)
 
 def GetArrayIsNotNone(InputArray):
+    #Should (type(InputArray) == "NoneType") be used instead?
     return(InputArray is not None)
 
 def EndTimeRecording():
 
     global StartTimes
+    global EndTimes
     global ProgramStartTime
 
     if(len(StartTimes) > 0):
         print("----- Block Percents Of Total Time -----")
-        for BlockTime in StartTimes:
-            print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * BlockTime))
+        for i in range(len(StartTimes)):
+            #Block times are only valid if ID's were referenced only once
+            print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * (EndTimes[i]-StartTimes[i])))
         
     print("\n----- Total Time -----")
     print("Total Time : " + str(time.time()-ProgramStartTime))
+
 
 RunOptimizationOnDataInputFile(Priors)

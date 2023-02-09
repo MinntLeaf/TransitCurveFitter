@@ -8,38 +8,41 @@ This was built using Python 3.10, although any version of Python 3 should work.
 
 ### Data
 
-Some usable data genrated using 'pi' is included in this repo as `Data.txt`. It has a period of 'pi' and should return a period of aproximately 3.141 when used as input data.
+Some usable data generated using 'pi' is included in this repo as `Data.txt`. It has a period of 'pi' and should return a period of approximately 3.141 when used as input data.
 
 If you want to use different data, replace the data in the file `Data.txt` with your data.
 
-#### Data Formating
+#### Data Formatting
 
 Data should be input in the format (X Value),(Y Value),(Error).
 
 Commas "," are used as value separators.
 
-Numbers "1,2,3" and minus signs "-" will be converted into floating point values. All other charachters will be ignored.
+Numbers "1,2,3..." and minus signs "-" will be converted into floating point values. All other characters will be ignored.
 
-A line break signifies a new (X,Y,Error) entry. Empty lines will be ignored.
+A line break signifies a new value (X,Y,Error) entry. Empty lines will be ignored.
 
-An error value does not need to be supplied, however, if an Error value is not given for 1 or more data points, it will be ignored for **all** of them.
+An Error value does not need to be supplied, however, if an Error value is not given for 1 or more data points, it will be ignored for **all** of them.
 
 
 Examples:
 
-   1,2,-3
+   1,-2,3
 
-   1 , 2 ,- 3
+   1 ,- 2 , 3
 
-   1     ,2,-  hello  3
+   1  hello    ,-    2,  hello  3
 
-   (1), 2, -(3)
+   (1), -2, (3)
 
-   1 , [2],-3hello
+   1 , -[2],3hello
 
-   1    ,2,-3
+   1    ,-2hello,3
 
-All will be interpreted as 1,2,-3
+All will be interpreted as 1,-2,3
+X = 1
+Y = -2
+Error = 3
 
 
 

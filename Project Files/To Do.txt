@@ -1,5 +1,0 @@
-confirm that chi-squared calculation is giving appropriate values
-confirm that gaussian priors work correctly
--provide ability to work even if measurement uncertainties aren't given (probably just perform an initial, unweighted fit, then set the uncertainties to something like the sqrt of the residuals)
--perform decent outlier rejection (that is, the algorithm should be able to recognize if a few data points are wildly discrepant and just ignore them)
-Finally: wrap everything up into a single module or code package -- so that someone can just say "import blah" and then "results = blah.fitTransit(param1, param2, ...)"

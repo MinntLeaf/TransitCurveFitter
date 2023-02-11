@@ -1,6 +1,0 @@
-sandard deviation(data-model)
-Find how lmfit implements weights (1/weight or 1/weight^2) ?
-Implement priors as penalty values if x^2 deviates from known value
-
-All uncertainties should be the same, they represent the uncertainty of the data set, not the uncertainty of a single point.
-Look into basian, gausian curves, probability distribution to better understand it.

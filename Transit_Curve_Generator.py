@@ -188,22 +188,8 @@ def Clamp(Value, Min, Max):
     return(Value)
 
 def GetArrayBounds(DataArray):
-    MinValue = "NAN"
-    MaxValue = "NAN"
-    for i in range(len(DataArray)):
-        Value = DataArray[i]
-
-        if(MinValue == "NAN"):
-            MinValue = Value
-            MaxValue = Value
-        else:
-            if(Value < MinValue):
-                MinValue = Value
-            else:
-                if(Value > MaxValue):
-                    MaxValue = Value
-
-    return([MinValue, MaxValue])
+    DataArray = np.array(DataArray, copy=False)
+    return([DataArray.min(), DataArray.max()])
 
 def CopyStringDataToList(String):
     #Using a whitelist because there are more charachters we want to ignore than we want to use

@@ -423,53 +423,20 @@ def RunOptimizationOnDataInputFile(Priors):
     FileName = "Data"
     FileType = "txt"
 
-
-    DataIncludedErrorBars = False
-    Lines = []
-
-    #r - read
-    #w - write
-    #a - append data
-
-    with open(FileName+"."+FileType, "r") as File:
-        Lines = File.readlines(-1)
-
-
-
-    for Count in range(len(Lines)):
-        #Prevents empty lines from being run through string converter, which if returned would lead to adding an empty array element, or an error
-        if(Lines[Count] != "\n"):
-            DataPoints = np.append(DataPoints, [CopyStringDataToList(Lines[Count])],0)
-
-
-    ListDataX = []
-    ListDataY = []
-    ListDataERROR = []
-
-
-    NumberOfDataPoints = len(DataPoints)
-
-    for Count in range(NumberOfDataPoints):
-        ListDataX.append(DataPoints[Count][0])
-
-    DataX = np.array(ListDataX)
-
-    for Count in range(NumberOfDataPoints):
-        ListDataY.append(DataPoints[Count][1])
-
-    DataY = np.array(ListDataY)
-
-    for Count in range(NumberOfDataPoints):
-        ListDataERROR.append(DataPoints[Count][2])
-
-    DataERROR = np.array(ListDataERROR)
-
-    if(DataERROR[0] == -1):
+    # Assume CSV format with no header row:
+    datafile = np.loadtxt(FileName+"."+FileType, delimiter=',')
+    if datafile.shape[1]==2:
         DataIncludedErrorBars = False
-    else:
+        DataX = datafile[:,0]
+        DataY = datafile[:,1]
+        DataERROR = -np.ones(DataX.shape)
+    elif datafile.shape[1]==3:
         DataIncludedErrorBars = True
+        DataX = datafile[:,0]
+        DataY = datafile[:,1]
+        DataERROR = datafile[:,2]
 
-
+          
     #Get data bounds
     #Used in some parameter bounds
 

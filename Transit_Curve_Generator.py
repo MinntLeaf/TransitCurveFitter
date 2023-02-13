@@ -45,6 +45,7 @@ Priors = [
           [-0.5,None], #u1
           [-0.9,None] #u2
           ]
+#NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
 #Visual modifier only
 DataPointRenderSize = 1
@@ -476,6 +477,7 @@ def RunOptimizationOnDataInputFile(Priors):
     MinX = Bounds[0]
     MaxX = Bounds[1]
 
+    #Not currently used
     Bounds = GetArrayBounds(DataY)
     MinY = Bounds[0]
     MaxY = Bounds[1]
@@ -662,7 +664,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     OverlayMode = False
 
     #Show limits are allowed between
-    HighlightBoundsMode = True
+    HighlightBoundsMode = False
 
     NewDataX = DataX
     NewDataY = DataY
@@ -821,7 +823,7 @@ def EndTimeRecording():
     global ProgramStartTime
 
     if(len(StartTimes) > 0):
-        print("----- Block Percents Of Total Time -----")
+        print("\n----- Block Percents Of Total Time -----")
         for i in range(len(StartTimes)):
             #Block times are only valid if ID's were referenced only once
             print("Block Percent Of Total Time : " + str(100.0/(time.time()-ProgramStartTime) * (EndTimes[i]-StartTimes[i])))

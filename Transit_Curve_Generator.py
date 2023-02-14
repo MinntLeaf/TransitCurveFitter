@@ -1,6 +1,4 @@
-﻿from cmath import exp, pi, sqrt
-from datetime import time
-import time
+﻿import time
 import numpy as np
 
 #Curve fitting package
@@ -270,24 +268,28 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
     #Will try to minimize returned value
     return(CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, Priors))
 
-def LmfitInputFunction(x,t0,per,rp,a,inc,ecc,w,u1,u2):
+def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
+
+    ParamaterValues = Params.valuesdict()
 
     FittingTransityFunctionParams = batman.TransitParams()
 
-    FittingTransityFunctionParams.t0 = t0                        #time of inferior conjunction
-    FittingTransityFunctionParams.per =per                       #orbital period
-    FittingTransityFunctionParams.rp = rp                       #planet radius (in units of stellar radii)
-    FittingTransityFunctionParams.a = a                        #semi-major axis (in units of stellar radii)
-    FittingTransityFunctionParams.inc = inc                      #orbital inclination (in degrees)
-    FittingTransityFunctionParams.ecc = ecc                       #eccentricity
-    FittingTransityFunctionParams.w = w                        #longitude of periastron (in degrees)
+    FittingTransityFunctionParams.t0 = ParamaterValues["t0"]                        #time of inferior conjunction
+    FittingTransityFunctionParams.per = ParamaterValues["per"]                       #orbital period
+    FittingTransityFunctionParams.rp = ParamaterValues["rp"]                       #planet radius (in units of stellar radii)
+    FittingTransityFunctionParams.a = ParamaterValues["a"]                        #semi-major axis (in units of stellar radii)
+    FittingTransityFunctionParams.inc = ParamaterValues["inc"]                      #orbital inclination (in degrees)
+    FittingTransityFunctionParams.ecc = ParamaterValues["ecc"]                       #eccentricity
+    FittingTransityFunctionParams.w = ParamaterValues["w"]                        #longitude of periastron (in degrees)
     FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
-    FittingTransityFunctionParams.u = [u1, u2]      #limb darkening coefficients [u1, u2]
+    FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
 
-    m = batman.TransitModel(FittingTransityFunctionParams, x)
-    flux = m.light_curve(FittingTransityFunctionParams)
+    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,10).light_curve(FittingTransityFunctionParams)
 
-    return (flux)
+    ReturnChiArray = (DataY-Flux)
+
+    #print(Params.valuesdict(),str(DataY-Flux));
+    return (ReturnChiArray)
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
 
@@ -378,22 +380,16 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
             InputParams,
             args=(DataX,DataY,DataERROR, Priors), 
             method = "nelder",
+            calc_covar = True,
             max_nfev=None)
     else:
-        OptimizedFunctionToReturn = Model(LmfitInputFunction).fit(
-            DataY, x=DataX,
+        OptimizedFunctionToReturn = lmfit.minimize(
+            LmfitInputFunction,
+            InputParams,
+            args=(DataX,DataY,DataERROR, Priors), 
+            method='leastsq',
 
-            t0=Parameter("t0", value=StartingParameters.t0, min = MinX, max = MaxX),
-            per=Parameter("per", value=StartingParameters.per, min = 0.0, max = MaxX),
-            rp=Parameter("rp", value=StartingParameters.rp, min = 0, max = 10.0),
-            a=Parameter("a", value=StartingParameters.a, min = 1.0, max = 90),
-            inc=Parameter("inc", value=StartingParameters.inc, min = 60, max = 90),
-            ecc=Parameter("ecc", value=StartingParameters.ecc, min = 0.0, max = 1.0),
-            w=Parameter("w", value=StartingParameters.w, min = 0.0, max = 360.0),
-            u1=Parameter("u1", value=StartingParameters.u[0], min = -1.0, max = 1.0),
-            u2=Parameter("u2", value=StartingParameters.u[1], min = -1.0, max = 1.0),
-
-            weights=WeightedDataErrorArray,
+            calc_covar = True,
             max_nfev=None
             )
 
@@ -411,6 +407,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 
 #Main function
 def RunOptimizationOnDataInputFile(Priors):
+
+    #np.array used in this starting section is likely inecficient, but not the main time sink for this program
 
     print("Running. Please wait...\n")
 
@@ -456,10 +454,24 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.show()
         time.sleep(1000)
 
+#Test Starting Parameters
+
+    TestStartParams = batman.TransitParams()
+    TestStartParams.t0 = 0.96
+    TestStartParams.per = 3.14159265
+    TestStartParams.rp = 0.118
+    TestStartParams.a = 8.0
+    TestStartParams.inc = 83.7
+    TestStartParams.ecc = 0.0
+    TestStartParams.w = 1.0
+    TestStartParams.u = [-0.5, -0.9]
+    TestStartParams.limb_dark = "quadratic"
+#-----
+
     CheckTime(0,True)
     # - 5.2s
     #First optimization attempt, used to get error values
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, TestStartParams)
     CheckTime(0,False)
 
     #Extract parameters used
@@ -488,7 +500,7 @@ def RunOptimizationOnDataInputFile(Priors):
     # - 5.2s
     #Why?
     #Including error values appears to increase run time signoficantly
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
     CheckTime(1,False)
 
     #Extract paramaters from optimized function
@@ -522,7 +534,7 @@ def RunOptimizationOnDataInputFile(Priors):
     CheckTime(2,True)
     # - 3.5s
     #Why shorter than the other OptimizeFunctionParameters() calls?
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, False, None)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
     CheckTime(2,False)
 
 
@@ -630,7 +642,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     #will not halt further execution of the program, instead overlaying the scatter avlues or heat map underneath the final graph
     OverlayMode = False
 
-    #Show limits are allowed between
+    #Show limits values are allowed between
     HighlightBoundsMode = False
 
     NewDataX = DataX

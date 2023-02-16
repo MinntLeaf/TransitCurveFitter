@@ -28,6 +28,10 @@ import random
 import cProfile
 
 
+#Note:
+#periastron  is same as periapsis
+#It just refers to the periapsis of objects orbiting stars
+
 
 #If supplied, will be used as initial fitting parameters
 #First array element is value, second is certainty
@@ -190,6 +194,9 @@ def GetArrayBounds(DataArray):
     return([DataArray.min(), DataArray.max()])
 
 def CopyStringDataToList(String):
+    #Obsolete, no longer used
+    #Replaced with "np.loadtxt" function
+
     #Using a whitelist because there are more charachters we want to ignore than we want to use
     ValidCharachters = ["0","1","2","3","4","5","6","7","8","9",".","-"]
 
@@ -206,9 +213,9 @@ def CopyStringDataToList(String):
             ValuesFound+=1
         else:
 
-            # Variable in Array/List
+            #Variable in Array/List
             #Same as C#:
-            #Array/List.contains(Variable)
+            #(Array/List).contains(Variable)
 
             if Char in ValidCharachters:
                 CurrentString+=str(Char)
@@ -274,7 +281,15 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
 
     ReturnChiArray = (DataY-Flux)
 
+    #This is where Priors/Errors would be added:
+    #Priors need to be converted to an np.array
+    #ReturnChiArray = np.concatenate(ReturnChiArray, DataERROR, Priors)
+
+    #Debug logging
+    #If initial params are '0' minor changes will not affect the result enough for proper fitting
+    #Check 'a' parameter is set properly, do not leave as initialized value
     #print(Params.valuesdict(),str(DataY-Flux));
+
     return (ReturnChiArray)
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
@@ -374,7 +389,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
             InputParams,
             args=(DataX,DataY,DataERROR, Priors), 
             method='leastsq',
-
             calc_covar = True,
             max_nfev=None
             )
@@ -394,7 +408,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 #Main function
 def RunOptimizationOnDataInputFile(Priors):
 
-    #np.array used in this starting section is likely inecficient, but not the main time sink for this program
+    #np.array used in this starting section is likely ineficient, but not the main time sink for this program
 
     print("Running. Please wait...\n")
 
@@ -422,8 +436,8 @@ def RunOptimizationOnDataInputFile(Priors):
 
           
     #Get data bounds
+    
     #Used in some parameter bounds
-
     Bounds = GetArrayBounds(DataX)
     MinX = Bounds[0]
     MaxX = Bounds[1]
@@ -586,8 +600,8 @@ def RunOptimizationOnDataInputFile(Priors):
 
     print("-----")
     '''
-    with open("Output.txt", "w") as File:
-        Lines = File.writelines(StringData)
+    #with open("Output.txt", "w") as File:
+    #    Lines = File.writelines(StringData)
 
 
 

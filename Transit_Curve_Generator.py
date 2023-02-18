@@ -47,6 +47,11 @@ Priors = [
           [-0.5,None], #u1
           [-0.9,None] #u2
           ]
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
+PriorsDict = dict()
+for Name, Prior in zip(ParamNames, Priors):
+    PriorsDict[Name] = Prior
+
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
 #Visual modifier only
@@ -281,9 +286,18 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
 
     ReturnChiArray = (DataY-Flux)
 
-    #This is where Priors/Errors would be added:
-    #Priors need to be converted to an np.array
-    #ReturnChiArray = np.concatenate(ReturnChiArray, DataERROR, Priors)
+    if(not DataERROR is None):
+        ReturnChiArray/=DataERROR
+
+    FoundValidPriorValid = False
+    ModifiedPriorValues = []
+    for ParamName in PriorsDict.keys():
+        if PriorsDict[ParamName][1] is not None:
+            ModifiedPriorValues.append(PriorsDict[ParamName][0]/PriorsDict[ParamName][1])
+            FoundValidPriorValid = True
+
+    if(FoundValidPriorValid):
+        ReturnChiArray = np.concatenate((ReturnChiArray,ModifiedPriorValues), axis=0)
 
     #Debug logging
     #If initial params are '0' minor changes will not affect the result enough for proper fitting
@@ -317,16 +331,29 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 
     InputParams = lmfit.Parameters()
     if(UseLmfit and StartingParameters is not None):
-        #Lmfit version
-        InputParams.add("t0", value=StartingParameters.t0, min = MinX, max = MaxX) #Max?
-        InputParams.add("per", value=StartingParameters.per, min = 0.0, max = MaxX)
-        InputParams.add("rp", value=StartingParameters.rp, min = 0, max = 10.0)
-        InputParams.add("a", value=StartingParameters.a, min = 1.0, max = 90) #What should Max Bound be?
-        InputParams.add("inc", value=StartingParameters.inc, min = 60, max = 90)
-        InputParams.add("ecc", value=StartingParameters.ecc, min = 0.0, max = 1.0)
-        InputParams.add("w", value=StartingParameters.w, min = 0.0, max = 360.0)
-        InputParams.add("u1", value=StartingParameters.u[0], min = -1.0, max = 1.0)
-        InputParams.add("u2", value=StartingParameters.u[1], min = -1.0, max = 1.0)
+        if(StartingParameters is not None):
+            #Lmfit version
+            InputParams.add("t0", value=StartingParameters.t0, min = MinX, max = MaxX) #Max?
+            InputParams.add("per", value=StartingParameters.per, min = 0.0, max = MaxX)
+            InputParams.add("rp", value=StartingParameters.rp, min = 0, max = 10.0)
+            InputParams.add("a", value=StartingParameters.a, min = 1.0, max = 90) #What should Max Bound be?
+            InputParams.add("inc", value=StartingParameters.inc, min = 60, max = 90)
+            InputParams.add("ecc", value=StartingParameters.ecc, min = 0.0, max = 1.0)
+            InputParams.add("w", value=StartingParameters.w, min = 0.0, max = 360.0)
+            InputParams.add("u1", value=StartingParameters.u[0], min = -1.0, max = 1.0)
+            InputParams.add("u2", value=StartingParameters.u[1], min = -1.0, max = 1.0)
+        else:
+            if(Priors is not None):
+                #Lmfit version
+                InputParams.add("t0", value=Priors[0][0], min = MinX, max = MaxX) #Max?
+                InputParams.add("per", value=Priors[1][0], min = 0.0, max = MaxX)
+                InputParams.add("rp", value=Priors[2][0], min = 0, max = 10.0)
+                InputParams.add("a", value=Priors[3][0], min = 1.0, max = 90) #What should Max Bound be?
+                InputParams.add("inc", value=Priors[4][0], min = 60, max = 90)
+                InputParams.add("ecc", value=Priors[5][0], min = 0.0, max = 1.0)
+                InputParams.add("w", value=Priors[6][0], min = 0.0, max = 360.0)
+                InputParams.add("u1", value=Priors[7][0][0], min = -1.0, max = 1.0)
+                InputParams.add("u2", value=Priors[8][0][1], min = -1.0, max = 1.0)
     else:
         #Minimize version
 
@@ -454,24 +481,11 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.show()
         time.sleep(1000)
 
-#Test Starting Parameters
-
-    TestStartParams = batman.TransitParams()
-    TestStartParams.t0 = 0.96
-    TestStartParams.per = 3.14159265
-    TestStartParams.rp = 0.118
-    TestStartParams.a = 8.0
-    TestStartParams.inc = 83.7
-    TestStartParams.ecc = 0.0
-    TestStartParams.w = 1.0
-    TestStartParams.u = [-0.5, -0.9]
-    TestStartParams.limb_dark = "quadratic"
-#-----
 
     CheckTime(0,True)
     # - 5.2s
     #First optimization attempt, used to get error values
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, TestStartParams)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
     CheckTime(0,False)
 
     #Extract parameters used
@@ -500,7 +514,7 @@ def RunOptimizationOnDataInputFile(Priors):
     # - 5.2s
     #Why?
     #Including error values appears to increase run time signoficantly
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, None)
     CheckTime(1,False)
 
     #Extract paramaters from optimized function
@@ -534,7 +548,7 @@ def RunOptimizationOnDataInputFile(Priors):
     CheckTime(2,True)
     # - 3.5s
     #Why shorter than the other OptimizeFunctionParameters() calls?
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, None)
     CheckTime(2,False)
 
 
@@ -616,9 +630,10 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Fixed "χ2" rendering issue
     BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr,2))
+    ReducedChi = "Reduced χ2 : " + str(round(CheckedOptimizedChiSqr/NumberOfDataPoints,5))
 
     #Text box setup
-    ChiAnchoredTextBox = AnchoredText(BestChi
+    ChiAnchoredTextBox = AnchoredText((BestChi + "\n" + ReducedChi)
                                     , loc=4, pad=0.5)
     matplot.setp(ChiAnchoredTextBox.patch, facecolor="Orange", alpha=0.5)
     matplot.gca().add_artist(ChiAnchoredTextBox)
@@ -643,7 +658,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     OverlayMode = False
 
     #Show limits values are allowed between
-    HighlightBoundsMode = False
+    HighlightBoundsMode = True
 
     NewDataX = DataX
     NewDataY = DataY

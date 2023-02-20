@@ -34,18 +34,18 @@ import cProfile
 
 
 #If supplied, will be used as initial fitting parameters
-#First array element is value, second is certainty
+#First array element is value, second is uncertainty
 #If either value is missing from an element, both elements will be ignored
 Priors = [
-          [0.96,None], #t0
-          [3.14159265,None], #per
-          [0.118,None], #rp
-          [8.0,None], #a
-          [83.7,None], #inc
-          [0.0,None], #ecc
-          [1.0,None], #w
-          [-0.5,None], #u1
-          [-0.9,None] #u2
+          [0.96,999], #t0
+          [3.14159265,999], #per
+          [0.118,999], #rp
+          [8.0,999], #a
+          [83.7,999], #inc
+          [0.0,999], #ecc
+          [1.0,999], #w
+          [-0.9,999], #u1
+          [-0.9,999] #u2
           ]
 ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
 PriorsDict = dict()
@@ -131,16 +131,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     return(FixedArray)
 
-GlobalCount = 0
-CountTime = False
 def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
-
-    if(CountTime):
-        global GlobalCount
-        GlobalCount+=1
-        print(GlobalCount)
-
-    
 
     m = batman.TransitModel(Params, DataX)
     flux = m.light_curve(Params)
@@ -183,6 +174,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
     return(CheckedOptimizedChiSqr)
 
 def ReturnChiModiferOfParameterPrior(Param, Prior, PriorERROR):
+    print(((Param-Prior)/PriorERROR)**2)
     return(((Param-Prior)/PriorERROR)**2)
 
 def Clamp(Value, Min, Max):
@@ -284,7 +276,10 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
 
     Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,10).light_curve(FittingTransityFunctionParams)
 
-    ReturnChiArray = (DataY-Flux)
+    ReturnChiArray = abs(DataY-Flux)
+
+    #for Val in ReturnChiArray:
+    #    if(Val)
 
     if(not DataERROR is None):
         ReturnChiArray/=DataERROR
@@ -293,8 +288,13 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
     ModifiedPriorValues = []
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
-            ModifiedPriorValues.append(PriorsDict[ParamName][0]/PriorsDict[ParamName][1])
+            #print(PriorsDict)
+            ModifiedPriorValues.append(abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))
             FoundValidPriorValid = True
+            print(str((abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))))
+
+
+
 
     if(FoundValidPriorValid):
         ReturnChiArray = np.concatenate((ReturnChiArray,ModifiedPriorValues), axis=0)
@@ -508,17 +508,19 @@ def RunOptimizationOnDataInputFile(Priors):
     #data-model
     #stder(data-model)
 
+    '''
     #Run second time, using newly calculated error values
 
     CheckTime(1,True)
     # - 5.2s
     #Why?
-    #Including error values appears to increase run time signoficantly
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, None)
+    #Including error values appears to increase run time significantly
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
     CheckTime(1,False)
 
     #Extract paramaters from optimized function
     OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
+    '''
 
 
     #Remove Outlier values
@@ -545,11 +547,11 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     #Run third time, this time having removed outliers
-    CheckTime(2,True)
+    CheckTime(1,True)
     # - 3.5s
     #Why shorter than the other OptimizeFunctionParameters() calls?
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, None)
-    CheckTime(2,False)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
+    CheckTime(1,False)
 
 
     FinalOptimizedFunction = ThirdOptimizedFunction

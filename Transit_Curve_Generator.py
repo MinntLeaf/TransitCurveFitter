@@ -64,6 +64,7 @@ DataPointRenderSize = 1
 TestMode = False
 TestModeRenderPoints = True
 
+'''
 if(TestMode):
     OverideFunctionParams = batman.TransitParams()
     OverideFunctionParams.t0 = 0.96
@@ -84,6 +85,7 @@ if(TestMode):
     m = batman.TransitModel(OverideFunctionParams, SamplePoints)
     flux = m.light_curve(OverideFunctionParams)
     matplot.plot(SamplePoints,flux, "-", label="Optimized Function")
+'''
 
 
 
@@ -125,7 +127,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     for Count in range(len(FixedArray)):
         if(FixedArray[Count] == 0):
-            print("'0' Array Value At Index : " + str(Count) + " : Replacing With Lowest Array Value")
+            #print("'0' Array Value At Index : " + str(Count) + " : Replacing With Lowest Array Value")
 
             FixedArray[Count] = LowestArrayValue
 
@@ -174,7 +176,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
     return(CheckedOptimizedChiSqr)
 
 def ReturnChiModiferOfParameterPrior(Param, Prior, PriorERROR):
-    print(((Param-Prior)/PriorERROR)**2)
+    #print(((Param-Prior)/PriorERROR)**2)
     return(((Param-Prior)/PriorERROR)**2)
 
 def Clamp(Value, Min, Max):
@@ -230,6 +232,7 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
 
     FittingTransityFunctionParams = batman.TransitParams()
 
+    #Maybe add function to copy params from parameter values dict, 
     FittingTransityFunctionParams.t0 = ParamaterValues["t0"]                        #time of inferior conjunction
     FittingTransityFunctionParams.per = ParamaterValues["per"]                       #orbital period
     FittingTransityFunctionParams.rp = ParamaterValues["rp"]                       #planet radius (in units of stellar radii)
@@ -240,20 +243,6 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
     FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
 
-    '''
-    print(
-       str(FittingTransityFunctionParams.t0) + "\n" + 
-        str(FittingTransityFunctionParams.per) + "\n" + 
-        str(FittingTransityFunctionParams.rp) + "\n" + 
-        str(FittingTransityFunctionParams.a) + "\n" + 
-        str(FittingTransityFunctionParams.inc) + "\n" + 
-        str(FittingTransityFunctionParams.ecc) + "\n" + 
-        str(FittingTransityFunctionParams.w) + "\n" + 
-        str(FittingTransityFunctionParams.u[0]) + "\n" + 
-        str(FittingTransityFunctionParams.u[1]) + "\n" +
-        " "
-        )
-        '''
 
     #Will try to minimize returned value
     return(CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, Priors))
@@ -288,13 +277,12 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
     ModifiedPriorValues = []
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
-            #print(PriorsDict)
             ModifiedPriorValues.append(abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))
             FoundValidPriorValid = True
-            print(str((abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))))
+            #print(str((abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))))
 
 
-
+    FoundValidPriorValid = False
 
     if(FoundValidPriorValid):
         ReturnChiArray = np.concatenate((ReturnChiArray,ModifiedPriorValues), axis=0)
@@ -357,6 +345,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
     else:
         #Minimize version
 
+        #Probably better way to handle this
         InitialValue_t0 = 0.0
         InitialValue_per = 0.0
         InitialValue_rp = 0.0
@@ -409,15 +398,30 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
             args=(DataX,DataY,DataERROR, Priors), 
             method = "nelder",
             calc_covar = True,
-            max_nfev=None)
+            max_nfev=None,
+            nan_policy = 'raise'
+        )
     else:
+
+        #Function
+        #Params
+        #Arguments (will be passed to function, not modified by or visible to fitting method)
+        #Method, defaults to 'Levenberg-Marquardt' referenced by 'leastsq', assigning it specifically should not be necesary [Different from 'least_squares']
+        #Wether to calculate uncertainties (if fitting method supports it), should default to true
+        #Maximum evaluations, should default to none
+        #Weights not included, are being processed in lmfit function instead of solver to allow for inclusion of prior weights
+        #Raise issue if NAN found, this shouldn't happen, but I would like to know about it if it does because it means something isn't being processed correctly.
+
         OptimizedFunctionToReturn = lmfit.minimize(
+
             LmfitInputFunction,
+
             InputParams,
-            args=(DataX,DataY,DataERROR, Priors), 
+            args=(DataX,DataY,DataERROR, Priors),
             method='leastsq',
             calc_covar = True,
-            max_nfev=None
+            max_nfev=None,
+            nan_policy = 'raise'
             )
 
         #Weight Implementation According To Documentation:
@@ -441,7 +445,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     DataPoints = np.array([[0,0,0]])
 
-    #Clear initialized array value, because don't know how to initialize empty array with bounds
+    #Clear initialized array value, because I don't know how to initialize empty array with bounds
     DataPoints = np.delete(DataPoints,0, 0)
 
 
@@ -474,6 +478,7 @@ def RunOptimizationOnDataInputFile(Priors):
     MinY = Bounds[0]
     MaxY = Bounds[1]
 
+    NumberOfDataPoints = len(DataX)
 
     if(TestMode):
         if(TestModeRenderPoints):
@@ -485,7 +490,11 @@ def RunOptimizationOnDataInputFile(Priors):
     CheckTime(0,True)
     # - 5.2s
     #First optimization attempt, used to get error values
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
+
+    #Running this first iteration with 'neldear' generates significantly better initial results than 'leastsqr'
+    #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
+
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
     CheckTime(0,False)
 
     #Extract parameters used
@@ -504,18 +513,14 @@ def RunOptimizationOnDataInputFile(Priors):
         #print(np.std((DataY-FirstOptimizedFunction.light_curve(OptimizedParams))))
 
 
-
-    #data-model
-    #stder(data-model)
-
     '''
     #Run second time, using newly calculated error values
-
+    
     CheckTime(1,True)
     # - 5.2s
-    #Why?
-    #Including error values appears to increase run time significantly
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, TestStartParams)
+    #Why does this take longer?
+    #Including error values appears to increase run time significantly.
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
     CheckTime(1,False)
 
     #Extract paramaters from optimized function
@@ -524,6 +529,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     #Remove Outlier values
+    
     NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
 
     DataX = NewDataValues[0]
@@ -532,6 +538,7 @@ def RunOptimizationOnDataInputFile(Priors):
     IndexesRemoved = NewDataValues[3]
     if (len(IndexesRemoved) > 0):
         DataERROR = np.delete(DataERROR,IndexesRemoved)
+    
 
 
 
@@ -544,7 +551,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
         #Recalcualte error values with the outlier values removed
         DataERROR = (DataY*0 + np.std((DataY-UpdatedLightValues)))
-
+    
 
     #Run third time, this time having removed outliers
     CheckTime(1,True)
@@ -747,7 +754,8 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                     if(not( (Difference) > MaxDifferenceAllowed)):
                         HeatMapColors.append((1,0,0,Clamp((1.0/MaxDifferenceAllowed * (Difference)),0.0,1.0)))
                     else:
-                        HeatMapColors.append((1.0,0.647,0,0.9))
+                        #HeatMapColors.append((1.0,0.647,0,0.9))
+                        HeatMapColors.append((0,0,0,0.9))
 
                 matplot.scatter(DataX ,DataY, color=HeatMapColors, s = 8)
 
@@ -769,13 +777,14 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
 
         if(not OverlayMode):
+            #Close graph to continue program
             matplot.show()
 
         #Results Interpretation:
 
         #Green lines are bounds in which points are allowd, points that do not fall between these lines will be removed
         #Yellow line is the fitted line, it's y values are what the points are being compared to
-        #Orange points have been removed
+        #Black points have been removed
         #Red points have not been removed, the transparency of their color indicates how close they are to being removed. Dark red ones are close to the limit, almost clear ones are close to their expected values.
         #Note ^ points overlayed on top of eachother will stack their transparencies, resulting in dark coolors even if they are not close to the border. Zoom in on the graph if you wish to acurately see the colors of points that are overlaping one another.
 

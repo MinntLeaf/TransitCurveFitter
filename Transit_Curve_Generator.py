@@ -500,6 +500,10 @@ def RunOptimizationOnDataInputFile(Priors):
     #Extract parameters used
     OptimizedParams = ExtractParametersFromFittedFunction(OptimizedFunction)
 
+
+
+
+
     #Generate function based on extracted parameters
     FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
 
@@ -667,7 +671,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     OverlayMode = False
 
     #Show limits values are allowed between
-    HighlightBoundsMode = True
+    HighlightBoundsMode = False
 
     NewDataX = DataX
     NewDataY = DataY
@@ -760,16 +764,17 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                 matplot.scatter(DataX ,DataY, color=HeatMapColors, s = 8)
 
         
+        XBounds = GetArrayBounds(DataX)
+        SamplePoints = np.linspace(XBounds[0],XBounds[1],10000)
+        m = batman.TransitModel(Parameters, SamplePoints)
+        LightCurve = m.light_curve(Parameters)
+
+        matplot.plot(SamplePoints,LightCurve, "-", color="blue")
+
+
         if(HighlightBoundsMode):
-            XBounds = GetArrayBounds(DataX)
-
-            SamplePoints = np.linspace(XBounds[0],XBounds[1],10000)
-            m = batman.TransitModel(Parameters, SamplePoints)
-            LightCurve = m.light_curve(Parameters)
-
-            matplot.plot(SamplePoints,LightCurve, "-", color="blue")
-            #matplot.plot(SamplePoints,LightCurve + MaxDifferenceAllowed, "-", color="green")
-            #matplot.plot(SamplePoints,LightCurve - MaxDifferenceAllowed, "-", color="green")
+            matplot.plot(SamplePoints,LightCurve + MaxDifferenceAllowed, "-", color="green")
+            matplot.plot(SamplePoints,LightCurve - MaxDifferenceAllowed, "-", color="green")
                 
                 
 

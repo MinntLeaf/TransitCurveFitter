@@ -108,7 +108,7 @@ def CheckTime(ID, IsStart):
             StartTimes[ID] = time.time()
     else:
         #Is end
-        print("Block Time ID :",str(ID),": Time :", str(time.time()-StartTimes[ID]));
+        print("Block Time ID :",str(ID),": Time :", str(time.time()-StartTimes[ID]))
         EndTimes.append(time.time())
 
 def ReplaceZerosInArrayWithLowestValue(DataArray):
@@ -290,7 +290,7 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
     #Debug logging
     #If initial params are '0' minor changes will not affect the result enough for proper fitting
     #Check 'a' parameter is set properly, do not leave as initialized value
-    #print(Params.valuesdict(),str(DataY-Flux));
+    #print(Params.valuesdict(),str(DataY-Flux))
 
     return (ReturnChiArray)
 
@@ -399,7 +399,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
             method = "nelder",
             calc_covar = True,
             max_nfev=None,
-            nan_policy = 'raise'
+            nan_policy = "raise"
         )
     else:
 
@@ -418,10 +418,10 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
 
             InputParams,
             args=(DataX,DataY,DataERROR, Priors),
-            method='leastsq',
+            method="leastsq",
             calc_covar = True,
             max_nfev=None,
-            nan_policy = 'raise'
+            nan_policy = "raise"
             )
 
         #Weight Implementation According To Documentation:
@@ -494,7 +494,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Running this first iteration with 'neldear' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
     CheckTime(0,False)
 
     #Extract parameters used
@@ -660,7 +660,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
-    TestMode = False
+    TestMode = True
     #Only valid if 'TestMode' is active
 
     #will not halt further execution of the program, instead overlaying the scatter avlues or heat map underneath the final graph
@@ -767,9 +767,9 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
             m = batman.TransitModel(Parameters, SamplePoints)
             LightCurve = m.light_curve(Parameters)
 
-            matplot.plot(SamplePoints,LightCurve, "-", color="yellow")
-            matplot.plot(SamplePoints,LightCurve + MaxDifferenceAllowed, "-", color="green")
-            matplot.plot(SamplePoints,LightCurve - MaxDifferenceAllowed, "-", color="green")
+            matplot.plot(SamplePoints,LightCurve, "-", color="blue")
+            #matplot.plot(SamplePoints,LightCurve + MaxDifferenceAllowed, "-", color="green")
+            #matplot.plot(SamplePoints,LightCurve - MaxDifferenceAllowed, "-", color="green")
                 
                 
 

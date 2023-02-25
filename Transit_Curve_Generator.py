@@ -35,7 +35,6 @@ import cProfile
 
 #If supplied, will be used as initial fitting parameters
 #First array element is value, second is uncertainty
-#If either value is missing from an element, both elements will be ignored
 Priors = [
           [0.96,999], #t0
           [3.14159265,999], #per
@@ -57,35 +56,8 @@ for Name, Prior in zip(ParamNames, Priors):
 #Visual modifier only
 DataPointRenderSize = 1
 #Suggested Values:
-#0.4, apears as point cloud, easy to see function line
+#1, apears as point cloud, easy to see function line
 #2, larger than error bar, easy to see points when error value is high
-
-#   TEST OVERIDE MODE
-TestMode = False
-TestModeRenderPoints = True
-
-'''
-if(TestMode):
-    OverideFunctionParams = batman.TransitParams()
-    OverideFunctionParams.t0 = 0.96
-    OverideFunctionParams.per = 3.1
-    OverideFunctionParams.rp = 0.118
-    OverideFunctionParams.a = 16.2
-    OverideFunctionParams.inc = 87.3
-    OverideFunctionParams.ecc = 0.1
-    OverideFunctionParams.w = 90.0
-    OverideFunctionParams.u = [0.09, 0.28]
-    OverideFunctionParams.limb_dark = "quadratic"
-    OverideFunctionMin = 0
-    OverideFunctionMax = 27.19
-
-    fig, ax = matplot.subplots()
-
-    SamplePoints = np.linspace(OverideFunctionMin,OverideFunctionMax,100000)
-    m = batman.TransitModel(OverideFunctionParams, SamplePoints)
-    flux = m.light_curve(OverideFunctionParams)
-    matplot.plot(SamplePoints,flux, "-", label="Optimized Function")
-'''
 
 
 
@@ -119,11 +91,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     FixedArray = DataArray
 
-    LowestArrayValue = "!"
-
-    for Count in range(len(DataArray)):
-        if((LowestArrayValue == "!" or DataArray[Count] < LowestArrayValue) and DataArray[Count] != 0):
-            LowestArrayValue = DataArray[Count]
+    LowestArrayValue = GetArrayBounds(DataArray)[0]
 
     for Count in range(len(FixedArray)):
         if(FixedArray[Count] == 0):
@@ -133,10 +101,12 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     return(FixedArray)
 
-def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
+def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
-    m = batman.TransitModel(Params, DataX)
-    flux = m.light_curve(Params)
+    TransiteParams = ConvertParamatersToTransitValues(Params)
+
+    m = batman.TransitModel(TransiteParams, DataX)
+    flux = m.light_curve(TransiteParams)
 
     CheckedOptimizedChiSqr = 0
 
@@ -149,6 +119,9 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
     else:
         CheckedOptimizedChiSqr = (((DataY-flux))**2).sum()
 
+    
+    '''
+    #This section takes a significant ammount of time:
     if(Priors is not None):
         #Unpackage priors, compare to Params, modify CheckedOptimizedChiSqr based on their comparison
 
@@ -171,6 +144,19 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR, Priors):
             CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params.u[0], Priors[7][0], Priors[7][1])
         if(not Priors[8][0] == None and not Priors[8][1] == None):
             CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params.u[1], Priors[8][0], Priors[8][1])
+    '''
+
+    ParamaterValues = Params.valuesdict()
+
+    for ParamName in PriorsDict.keys():
+        if PriorsDict[ParamName][1] is not None:
+            CheckedOptimizedChiSqr+=((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1])**2
+
+
+
+
+
+
 
 
     return(CheckedOptimizedChiSqr)
@@ -192,44 +178,13 @@ def GetArrayBounds(DataArray):
     DataArray = np.array(DataArray, copy=False)
     return([DataArray.min(), DataArray.max()])
 
-def CopyStringDataToList(String):
-    #Obsolete, no longer used
-    #Replaced with "np.loadtxt" function
 
-    #Using a whitelist because there are more charachters we want to ignore than we want to use
-    ValidCharachters = ["0","1","2","3","4","5","6","7","8","9",".","-"]
-
-    DataList = []
-    CurrentString = ""
-    ValuesFound = 0
-    for Count in range(len(String)):
-        Char = String[Count]
-        
-        if Char == ",":
-            StringValue = float(CurrentString)
-            DataList.append(StringValue)
-            CurrentString = ""
-            ValuesFound+=1
-        else:
-
-            #Variable in Array/List
-            #Same as C#:
-            #(Array/List).contains(Variable)
-
-            if Char in ValidCharachters:
-                CurrentString+=str(Char)
-
-    DataList.append(float(CurrentString))
-
-    if(ValuesFound < 3):
-        DataList.append(-1)
-
-    return(DataList)
-
+NelderEvaluations = 0
 def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
 
     ParamaterValues = Params.valuesdict()
 
+    '''
     FittingTransityFunctionParams = batman.TransitParams()
 
     #Maybe add function to copy params from parameter values dict, 
@@ -242,10 +197,13 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
     FittingTransityFunctionParams.w = ParamaterValues["w"]                        #longitude of periastron (in degrees)
     FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
+    '''
 
+    global NelderEvaluations
+    NelderEvaluations+=1
 
     #Will try to minimize returned value
-    return(CalculateChiSqr(DataX, DataY, FittingTransityFunctionParams, DataERROR, Priors))
+    return(CalculateChiSqr(DataX, DataY, Params, DataERROR))
 
 def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
 
@@ -273,6 +231,7 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
     if(not DataERROR is None):
         ReturnChiArray/=DataERROR
 
+    global PriorsDict
     FoundValidPriorValid = False
     ModifiedPriorValues = []
     for ParamName in PriorsDict.keys():
@@ -296,19 +255,6 @@ def LmfitInputFunction(Params, DataX,DataY,DataERROR, Priors):
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, StartingParameters):
 
-
-    DataIncludedErrorBars = GetArrayIsNotNone(DataERROR)
-
-    WeightedDataErrorArray = None
-
-    if(DataIncludedErrorBars):
-        #Remove zeros from array, an error value of '0' leeds to calculation errors and is improbable
-        WeightedDataErrorArray = (1.0/ReplaceZerosInArrayWithLowestValue(DataERROR))
-
-
-    #else:
-    #    WeightedDataErrorArray = (1.0+0*DataX)    
-    #   Lmfit should interpret a passed value of 'None' as a lack of weights value, which should weight them all equally
 
 
     Bounds = GetArrayBounds(DataX)
@@ -403,6 +349,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit, Starti
         )
     else:
 
+        #   lmfit.minimize(
         #Function
         #Params
         #Arguments (will be passed to function, not modified by or visible to fitting method)
@@ -480,25 +427,22 @@ def RunOptimizationOnDataInputFile(Priors):
 
     NumberOfDataPoints = len(DataX)
 
-    if(TestMode):
-        if(TestModeRenderPoints):
-            matplot.errorbar(DataX, DataY, fmt ="o", markersize = DataPointRenderSize)
-        matplot.show()
-        time.sleep(1000)
 
 
     CheckTime(0,True)
     # - 5.2s
     #First optimization attempt, used to get error values
 
-    #Running this first iteration with 'neldear' generates significantly better initial results than 'leastsqr'
+    #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
     CheckTime(0,False)
+    global NelderEvaluations
+    #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
-    OptimizedParams = ExtractParametersFromFittedFunction(OptimizedFunction)
+    OptimizedParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction)
 
 
 
@@ -566,7 +510,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
     FinalOptimizedFunction = ThirdOptimizedFunction
-    OptimizedParams = ExtractParametersFromFittedFunction(ThirdOptimizedFunction)
+    OptimizedParams = ExtractTransitParametersFromFittedFunction(ThirdOptimizedFunction)
     
 
     #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
@@ -601,7 +545,7 @@ def RunOptimizationOnDataInputFile(Priors):
     print("\n")
 
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,OptimizedParams, DataERROR, Priors)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX,DataY,ThirdOptimizedFunction.params, DataERROR)
     
 
 
@@ -659,16 +603,16 @@ def RunOptimizationOnDataInputFile(Priors):
     print("\nCompleted")
 
     #Display plotted data
-    #Will 'end' program, code after this function is called will not be run (this behavior can be changed)
-    matplot.show()
+    #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
+    #matplot.show()
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     TestMode = True
     #Only valid if 'TestMode' is active
 
-    #will not halt further execution of the program, instead overlaying the scatter avlues or heat map underneath the final graph
-    OverlayMode = False
+    #will not halt further execution of the program, instead overlaying the scatter values or heat map underneath the final graph
+    OverlayMode = True
 
     #Show limits values are allowed between
     HighlightBoundsMode = False
@@ -788,7 +732,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         #Results Interpretation:
 
         #Green lines are bounds in which points are allowd, points that do not fall between these lines will be removed
-        #Yellow line is the fitted line, it's y values are what the points are being compared to
+        #Blue line is the fitted line, it's y values are what the points are being compared to
         #Black points have been removed
         #Red points have not been removed, the transparency of their color indicates how close they are to being removed. Dark red ones are close to the limit, almost clear ones are close to their expected values.
         #Note ^ points overlayed on top of eachother will stack their transparencies, resulting in dark coolors even if they are not close to the border. Zoom in on the graph if you wish to acurately see the colors of points that are overlaping one another.
@@ -805,22 +749,11 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     return(NewDataX,NewDataY,NewNumberOfDataPoints, IndexesToRemove)
 
-def ExtractParametersFromFittedFunction(Function):
+def ExtractTransitParametersFromFittedFunction(Function):
 
     #Have to manually assign params instead of using 'OptimizedFunction.params' because 'limb_dark' is not assigned by the function
-
-    ExtractedParameters = batman.TransitParams()
-    ExtractedParameters.t0 = Function.params["t0"].value
-    ExtractedParameters.per = Function.params["per"].value
-    ExtractedParameters.rp = Function.params["rp"].value
-    ExtractedParameters.a = Function.params["a"].value
-    ExtractedParameters.inc = Function.params["inc"].value
-    ExtractedParameters.ecc = Function.params["ecc"].value
-    ExtractedParameters.w = Function.params["w"].value
-    ExtractedParameters.u = [Function.params["u1"].value, Function.params["u2"].value]
-    ExtractedParameters.limb_dark = "quadratic"
-
-    return(ExtractedParameters)
+    
+    return(ConvertParamatersToTransitValues(Function.params))
 
 def GetArrayIsNotNone(InputArray):
     #Should (type(InputArray) == "NoneType") be used instead?
@@ -841,5 +774,33 @@ def EndTimeRecording():
     print("\n----- Total Time -----")
     print("Total Time : " + str(time.time()-ProgramStartTime))
 
+def ConvertParamatersToTransitValues(InputParam):
+        
+    ParamaterValues = InputParam.valuesdict()
+    FittingTransitFunctionParams = batman.TransitParams()
 
-RunOptimizationOnDataInputFile(Priors)
+    FittingTransitFunctionParams.t0 = ParamaterValues["t0"]                        #time of inferior conjunction
+    FittingTransitFunctionParams.per = ParamaterValues["per"]                       #orbital period
+    FittingTransitFunctionParams.rp = ParamaterValues["rp"]                       #planet radius (in units of stellar radii)
+    FittingTransitFunctionParams.a = ParamaterValues["a"]                        #semi-major axis (in units of stellar radii)
+    FittingTransitFunctionParams.inc = ParamaterValues["inc"]                      #orbital inclination (in degrees)
+    FittingTransitFunctionParams.ecc = ParamaterValues["ecc"]                       #eccentricity
+    FittingTransitFunctionParams.w = ParamaterValues["w"]                        #longitude of periastron (in degrees)
+    FittingTransitFunctionParams.limb_dark = "quadratic"        #limb darkening model
+    FittingTransitFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
+
+    return(FittingTransitFunctionParams)
+    
+
+TestAvergageTimeMode = True
+
+if(not TestAvergageTimeMode):
+    RunOptimizationOnDataInputFile(Priors)
+else:
+    MultiCountStartTime = time.time()
+    Iterations = 50
+
+    for i in range(0,Iterations):
+        RunOptimizationOnDataInputFile(Priors)
+
+    print(("\n")*30,"============\nFINISHED============\n\nTotal Time :",str(int((time.time()-MultiCountStartTime)/Iterations*100)/100))

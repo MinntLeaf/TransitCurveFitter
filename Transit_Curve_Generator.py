@@ -427,15 +427,13 @@ def RunOptimizationOnDataInputFile(Priors):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors,
-                                                   False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
     CheckTime(0, False)
     global NelderEvaluations
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
-    OptimizedParams = ExtractTransitParametersFromFittedFunction(
-        OptimizedFunction)
+    OptimizedParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction)
 
     #Generate function based on extracted parameters
     FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
@@ -443,8 +441,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Calculate error from diference between first attempt created function, and given values
     if (not DataIncludedErrorBars):
         #I think "abs" should not be used here, the square of the values is being used instead. Not sure why abs affects the result in this case, but it does.
-        DataERROR = (DataY * 0 + np.std(
-            (DataY - FirstOptimizedFunction.light_curve(OptimizedParams))))
+        DataERROR = (DataY * 0 + np.std((DataY - FirstOptimizedFunction.light_curve(OptimizedParams))))
         #CheckChiSqr function expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
 
         #Debug logging
@@ -479,9 +476,7 @@ def RunOptimizationOnDataInputFile(Priors):
     if (not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
 
         #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
-        UpdatedLightValues = np.delete(
-            FirstOptimizedFunction.light_curve(OptimizedParams),
-            IndexesRemoved)
+        UpdatedLightValues = np.delete(FirstOptimizedFunction.light_curve(OptimizedParams),IndexesRemoved)
 
         #Recalcualte error values with the outlier values removed
         DataERROR = (DataY * 0 + np.std((DataY - UpdatedLightValues)))
@@ -490,13 +485,11 @@ def RunOptimizationOnDataInputFile(Priors):
     CheckTime(1, True)
     # - 3.5s
     #Why shorter than the other OptimizeFunctionParameters() calls?
-    ThirdOptimizedFunction = OptimizeFunctionParameters(
-        DataX, DataY, DataERROR, Priors, True, OptimizedParams)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
     CheckTime(1, False)
 
     FinalOptimizedFunction = ThirdOptimizedFunction
-    OptimizedParams = ExtractTransitParametersFromFittedFunction(
-        ThirdOptimizedFunction)
+    OptimizedParams = ExtractTransitParametersFromFittedFunction(ThirdOptimizedFunction)
 
     #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
     #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
@@ -560,20 +553,16 @@ def RunOptimizationOnDataInputFile(Priors):
     print("ChiSqr : " + str(CheckedOptimizedChiSqr))
     print("Number Of Data Points : " + str(NumberOfDataPoints))
     #The value below should be close to '1'
-    print("ChiSqr / # Data Points : " +
-          str(CheckedOptimizedChiSqr / NumberOfDataPoints))
+    print("ChiSqr / # Data Points : " + str(CheckedOptimizedChiSqr / NumberOfDataPoints))
 
     #Debug Logging END
 
     #Fixed "χ2" rendering issue
     BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr, 2))
-    ReducedChi = "Reduced χ2 : " + str(
-        round(CheckedOptimizedChiSqr / NumberOfDataPoints, 5))
+    ReducedChi = "Reduced χ2 : " + str(round(CheckedOptimizedChiSqr / NumberOfDataPoints, 5))
 
     #Text box setup
-    ChiAnchoredTextBox = AnchoredText((BestChi + "\n" + ReducedChi),
-                                      loc=4,
-                                      pad=0.5)
+    ChiAnchoredTextBox = AnchoredText((BestChi + "\n" + ReducedChi), loc=4, pad=0.5)
     matplot.setp(ChiAnchoredTextBox.patch, facecolor="Orange", alpha=0.5)
     matplot.gca().add_artist(ChiAnchoredTextBox)
     matplot.legend(loc=2, borderaxespad=0)
@@ -678,10 +667,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                 Count = 0
                 for Difference in Differences:
                     if (not ((Difference) > MaxDifferenceAllowed)):
-                        HeatMapColors.append(
-                            (1, 0, 0,
-                             Clamp((1.0 / MaxDifferenceAllowed * (Difference)),
-                                   0.0, 1.0)))
+                        HeatMapColors.append((1, 0, 0, Clamp((1.0 / MaxDifferenceAllowed * (Difference)), 0.0, 1.0)))
                     else:
                         #HeatMapColors.append((1.0,0.647,0,0.9))
                         HeatMapColors.append((0, 0, 0, 0.9))
@@ -696,14 +682,8 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
 
         if (HighlightBoundsMode):
-            matplot.plot(SamplePoints,
-                         LightCurve + MaxDifferenceAllowed,
-                         "-",
-                         color="green")
-            matplot.plot(SamplePoints,
-                         LightCurve - MaxDifferenceAllowed,
-                         "-",
-                         color="green")
+            matplot.plot(SamplePoints, LightCurve + MaxDifferenceAllowed, "-", color="green")
+            matplot.plot(SamplePoints, LightCurve - MaxDifferenceAllowed, "-", color="green")
 
         if (not OverlayMode):
             #Close graph to continue program
@@ -752,9 +732,7 @@ def EndTimeRecording():
         print("\n----- Block Percents Of Total Time -----")
         for i in range(len(StartTimes)):
             #Block times are only valid if ID's were referenced only once
-            print("Block Percent Of Total Time : " +
-                  str(100.0 / (time.time() - ProgramStartTime) *
-                      (EndTimes[i] - StartTimes[i])))
+            print("Block Percent Of Total Time : " + str(100.0 / (time.time() - ProgramStartTime) * (EndTimes[i] - StartTimes[i])))
 
     print("\n----- Total Time -----")
     print("Total Time : " + str(time.time() - ProgramStartTime))
@@ -792,6 +770,4 @@ else:
         print("Percent Completed :", str(100 / Iterations * (i + 1)))
         print("\n============")
 
-    print(
-        ("\n") * 30, "============\nFINISHED\n============\n\nAverage Time :",
-        str(int((time.time() - MultiCountStartTime) / Iterations * 100) / 100))
+    print(("\n") * 30, "============\nFINISHED\n============\n\nAverage Time :", str(int((time.time() - MultiCountStartTime) / Iterations * 100) / 100))

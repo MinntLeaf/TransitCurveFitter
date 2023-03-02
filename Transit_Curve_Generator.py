@@ -381,6 +381,47 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit,
 #Main function
 def RunOptimizationOnDataInputFile(Priors):
 
+    
+    '''
+    #Debug Testing
+    TestParamaters = batman.TransitParams()
+    
+    UseGoodValues = True
+
+    if(UseGoodValues != True):
+        #Bad
+        TestParamaters.t0 = 0.97779202
+        TestParamaters.per = 3.14110619
+        TestParamaters.rp = 0.10529006
+        TestParamaters.a =0.10529006
+        TestParamaters.inc = 0.10529006
+        TestParamaters.ecc = 0.10529006
+        TestParamaters.w = 0.10529006
+        TestParamaters.limb_dark = "quadratic"
+        TestParamaters.u = [-0.03773462, 0.56399941]
+    else:
+        #Good
+        TestParamaters.t0 = 0.9771297617522302
+        TestParamaters.per = 3.1411255188855454
+        TestParamaters.rp = 0.10448573735254096
+        TestParamaters.a =1.4315349098124923
+        TestParamaters.inc = 63.43883728462587
+        TestParamaters.ecc = 0.9497616962968043
+        TestParamaters.w = 2.050529211138452
+        TestParamaters.limb_dark = "quadratic"
+        TestParamaters.u = [-0.05394222113055169, -0.05394222113055169]
+
+    SamplePoints = np.linspace(0.0, 26.996528, 10000)
+    print(SamplePoints)
+    m = batman.TransitModel(TestParamaters, SamplePoints)
+    flux = m.light_curve(TestParamaters)
+    matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
+
+    matplot.show()
+    '''
+
+
+
     #np.array used in this starting section is likely ineficient, but not the main time sink for this program
 
     print("Running. Please wait...\n")
@@ -427,13 +468,21 @@ def RunOptimizationOnDataInputFile(Priors):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
     CheckTime(0, False)
     global NelderEvaluations
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
     OptimizedParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction)
+    
+    '''
+    #Debugging
+    print("HERE")
+    print(fit_report(OptimizedFunction))
+    time.sleep(999)
+    print("HERE")
+    '''
 
     #Generate function based on extracted parameters
     FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
@@ -523,7 +572,7 @@ def RunOptimizationOnDataInputFile(Priors):
     CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY,
                                              ThirdOptimizedFunction.params,
                                              DataERROR)
-
+    print("\n\n",MinX,"   ",MaxX)
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(OptimizedParams, SamplePoints)
@@ -573,16 +622,16 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Display plotted data
     #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
-    #matplot.show()
+    matplot.show()
 
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
-    TestMode = True
+    TestMode = False
     #Only valid if 'TestMode' is active
 
     #will not halt further execution of the program, instead overlaying the scatter values or heat map underneath the final graph
-    OverlayMode = True
+    OverlayMode = False
 
     #Show limits values are allowed between
     HighlightBoundsMode = False
@@ -672,7 +721,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                         #HeatMapColors.append((1.0,0.647,0,0.9))
                         HeatMapColors.append((0, 0, 0, 0.9))
 
-                matplot.scatter(DataX, DataY, color=HeatMapColors, s=8)
+                #matplot.scatter(DataX, DataY, color=HeatMapColors, s=8)
 
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)

@@ -43,6 +43,7 @@ Priors = [
 ]
 ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
 PriorsDict = dict()
+#Zip function 'links' objects together like an array of arrays
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
@@ -119,42 +120,14 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
     
 
 
-    '''
-    #This section takes a significant ammount of time:
-    if(Priors is not None):
-        #Unpackage priors, compare to Params, modify CheckedOptimizedChiSqr based on their comparison
-
-        if(not Priors[0][0] == None and not Priors[0][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["t0"], Priors[0][0], Priors[0][1])
-        if(not Priors[1][0] == None and not Priors[1][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["per"], Priors[1][0], Priors[1][1])
-        if(not Priors[2][0] == None and not Priors[2][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["rp"], Priors[2][0], Priors[2][1])
-        if(not Priors[3][0] == None and not Priors[3][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["a"], Priors[3][0], Priors[3][1])
-        if(not Priors[4][0] == None and not Priors[4][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["inc"], Priors[4][0], Priors[4][1])
-        if(not Priors[5][0] == None and not Priors[5][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["ecc"], Priors[5][0], Priors[5][1])
-        if(not Priors[6][0] == None and not Priors[6][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["w"], Priors[6][0], Priors[6][1])
-        #Separated in case only 1 u is given, or given out of order
-        if(not Priors[7][0] == None and not Priors[7][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["u1"], Priors[7][0], Priors[7][1])
-        if(not Priors[8][0] == None and not Priors[8][1] == None):
-            CheckedOptimizedChiSqr+=ReturnChiModiferOfParameterPrior(Params["u2"], Priors[8][0], Priors[8][1])
-    '''
-
-    #Replacement version
-    #This takes 1.66 seconds of total run time
-    #Which is less than 0.05 seconds faster than the anternative
+    #Removing this section decreases run time, because it increases the ammount of cycles nelder runs when it is included.
     ParamaterValues = Params.valuesdict()
+    global PriorsDict
 
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
-            CheckedOptimizedChiSqr += (
-                (PriorsDict[ParamName][0] - ParamaterValues[ParamName]) /
-                PriorsDict[ParamName][1])**2
+            CheckedOptimizedChiSqr += ((PriorsDict[ParamName][0] - ParamaterValues[ParamName]) /PriorsDict[ParamName][1])**2
+    
     
 
     return (CheckedOptimizedChiSqr)
@@ -468,7 +441,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
     CheckTime(0, False)
     global NelderEvaluations
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
@@ -620,9 +593,14 @@ def RunOptimizationOnDataInputFile(Priors):
 
     print("\nCompleted")
 
+    global NelderEvaluations
+    print(NelderEvaluations)
+    NelderEvaluations = 0
     #Display plotted data
     #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
-    matplot.show()
+    global TestAvergageTimeMode
+    if(not TestAvergageTimeMode):
+        matplot.show()
 
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
@@ -660,6 +638,8 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     #Reasonable 2
     #High reduction 1
 
+    ValuesRemoved = 0
+
     Colors = []
 
     IndexesToRemove = []
@@ -679,6 +659,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         #This allows for fine tuning, as all values will not likely fit between 0, and 2 times the mean
 
         if ((Difference) > MaxDifferenceAllowed):
+            ValuesRemoved+=1
             IndexesToRemove.append(Count)
 
             if (TestMode):
@@ -749,12 +730,17 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     if (NewNumberOfDataPoints + len(IndexesToRemove) != len(DataY)):
         #New number of datapoints value given is not equal to the original number minus those removed
         #This means there is an issue with the 'RemoveOutliersFromDataSet' function
-        print("ERROR : RemoveOutliersFromDataSet() returned an improper value")
+        print("ERROR : 'RemoveOutliersFromDataSet' function returned an improper value")
 
         #This check is here because small diferences in the actual number of data values [len(DataX)] and the recorded number of data points [NumberOfDataPoints] values can easilly go unoticed and lead to inacurate ChiSqr values down the line
 
         #Stop, definitely better way to do this
         time.sleep(99999)
+
+    RemovalPercentage = (100/len(DataX)*ValuesRemoved)
+    print("Values Removed By Outlier Rejection : " + str(ValuesRemoved) + " : Percentage Of Total Values : " + str(int(RemovalPercentage*100)/100) + "%")
+    if(RemovalPercentage > 10):
+        print("Warning :",str(int(RemovalPercentage*100)/100),"% of input values removed by outlier rejection function. Is the fit being used to Values Removed By Outlier Rejection\nThis is concerningly high.")
 
     return (NewDataX, NewDataY, NewNumberOfDataPoints, IndexesToRemove)
 
@@ -811,7 +797,7 @@ if (not TestAvergageTimeMode):
     RunOptimizationOnDataInputFile(Priors)
 else:
     MultiCountStartTime = time.time()
-    Iterations = 50
+    Iterations = 10
 
     for i in range(0, Iterations):
         RunOptimizationOnDataInputFile(Priors)

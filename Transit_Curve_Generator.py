@@ -121,6 +121,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
 
     #Removing this section decreases run time, because it increases the ammount of cycles nelder runs when it is included.
+    #Previouse comments about this section increasing run time because it was slow were wrong, this section is not to blame. I was wrong.
     ParamaterValues = Params.valuesdict()
     global PriorsDict
 

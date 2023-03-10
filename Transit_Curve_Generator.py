@@ -24,6 +24,10 @@ import random
 #Profiling library
 import cProfile
 
+#WARNING : Only works if OpenMP is enabled
+#Do not set this value above 1 if OpenMP is not available
+BatmansThreads = 1
+
 #Note:
 #periastron  is same as periapsis
 #It just refers to the periapsis of objects orbiting stars
@@ -104,7 +108,8 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
     TransiteParams = ConvertFitParamatersToTransitParamaters(Params)
 
-    m = batman.TransitModel(TransiteParams, DataX)
+    global BatmansThreads
+    m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
     flux = m.light_curve(TransiteParams)
 
     CheckedOptimizedChiSqr = 0
@@ -181,8 +186,10 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
     #Will try to minimize returned value
     return (CalculateChiSqr(DataX, DataY, Params, DataERROR))
 
-
+LBMIterations = 0
 def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors):
+    global LBMIterations
+    LBMIterations+=1
 
     ParamaterValues = Params.valuesdict()
 
@@ -198,8 +205,8 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors):
     FittingTransityFunctionParams.limb_dark = "quadratic"  #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]  #limb darkening coefficients [u1, u2]
 
-    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,
-                               10).light_curve(FittingTransityFunctionParams)
+    global BatmansThreads
+    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
 
     ReturnChiArray = abs(DataY - Flux)
 
@@ -234,15 +241,14 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors):
     return (ReturnChiArray)
 
 
-def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit,
-                               StartingParameters):
+def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, StartingParameters):
 
     Bounds = GetArrayBounds(DataX)
     MinX = Bounds[0]
     MaxX = Bounds[1]
 
     InputParams = lmfit.Parameters()
-    if (UseLmfit and StartingParameters is not None):
+    if (UseLBM and StartingParameters is not None):
         if (StartingParameters is not None):
             #Lmfit version
             InputParams.add("t0",value=StartingParameters.t0,min=MinX,max=MaxX)  #Max?
@@ -312,7 +318,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit,
 
     OptimizedFunctionToReturn = None
 
-    if (not UseLmfit):
+    if (not UseLBM):
         OptimizedFunctionToReturn = lmfit.minimize(
             CustomChiSqrInputFunction,
             InputParams,
@@ -341,6 +347,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLmfit,
             calc_covar=True,
             max_nfev=None,
             nan_policy="raise")
+
+
 
         #Weight Implementation According To Documentation:
         '''
@@ -387,7 +395,8 @@ def RunOptimizationOnDataInputFile(Priors):
 
     SamplePoints = np.linspace(0.0, 26.996528, 10000)
     print(SamplePoints)
-    m = batman.TransitModel(TestParamaters, SamplePoints)
+    global BatmansThreads
+    m = batman.TransitModel(TestParamaters, SamplePoints,nthreads = BatmansThreads)
     flux = m.light_curve(TestParamaters)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
@@ -449,7 +458,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Extract parameters used
     OptimizedParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction)
-    
+
     '''
     #Debugging
     print("HERE")
@@ -459,55 +468,46 @@ def RunOptimizationOnDataInputFile(Priors):
     '''
 
     #Generate function based on extracted parameters
-    FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX)
+    global BatmansThreads
+    FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedParams)
 
     #Calculate error from diference between first attempt created function, and given values
     if (not DataIncludedErrorBars):
         #I think "abs" should not be used here, the square of the values is being used instead. Not sure why abs affects the result in this case, but it does.
-        DataERROR = (DataY * 0 + np.std((DataY - FirstOptimizedFunction.light_curve(OptimizedParams))))
+        DataERROR = (DataY * 0 + np.std((DataY - FirstOptimizedFunction)))
         #CheckChiSqr function expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
 
         #Debug logging
-        #print(np.std((DataY-FirstOptimizedFunction.light_curve(OptimizedParams))))
-    '''
-    #Run second time, using newly calculated error values
-    
-    CheckTime(1,True)
-    # - 5.2s
-    #Why does this take longer?
-    #Including error values appears to increase run time significantly.
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
-    CheckTime(1,False)
+        #print(np.std((DataY-FirstOptimizedFunction)))
 
-    #Extract paramaters from optimized function
-    OptimizedParams = ExtractParametersFromFittedFunction(SecondOptimizedFunction)
-    '''
 
-    #Remove Outlier values
+    #Disable this to see if (too many)/(good) data points are being removed after the first fit.
+    #If this is happeneing the rpiros are liley too restrictive or too far from the actual values.
+    RemoveOutliers = True
 
-    NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
+    if(RemoveOutliers):
+        #Remove Outlier values
+        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
 
-    DataX = NewDataValues[0]
-    DataY = NewDataValues[1]
-    NumberOfDataPoints = NewDataValues[2]
-    IndexesRemoved = NewDataValues[3]
-    if (len(IndexesRemoved) > 0):
-        DataERROR = np.delete(DataERROR, IndexesRemoved)
+        DataX = NewDataValues[0]
+        DataY = NewDataValues[1]
+        NumberOfDataPoints = NewDataValues[2]
+        IndexesRemoved = NewDataValues[3]
+        if (len(IndexesRemoved) > 0):
+            DataERROR = np.delete(DataERROR, IndexesRemoved)
 
-    #Recalculate error
-    #If data did not include errors, and outliers have just been removed
-    if (not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
+        #Recalculate error
+        #If data did not include errors, and outliers have just been removed
+        if (not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
 
-        #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
-        UpdatedLightValues = np.delete(FirstOptimizedFunction.light_curve(OptimizedParams),IndexesRemoved)
+            #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
+            UpdatedLightValues = np.delete(FirstOptimizedFunction,IndexesRemoved)
 
-        #Recalcualte error values with the outlier values removed
-        DataERROR = (DataY * 0 + np.std((DataY - UpdatedLightValues)))
+            #Recalcualte error values with the outlier values removed
+            DataERROR = (DataY * 0 + np.std((DataY - UpdatedLightValues)))
 
-    #Run third time, this time having removed outliers
+    #Run second time, this time having removed outliers and calculated error values if they were not provided
     CheckTime(1, True)
-    # - 3.5s
-    #Why shorter than the other OptimizeFunctionParameters() calls?
     ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
     CheckTime(1, False)
 
@@ -549,7 +549,7 @@ def RunOptimizationOnDataInputFile(Priors):
     print("\n\n",MinX,"   ",MaxX)
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
-    m = batman.TransitModel(OptimizedParams, SamplePoints)
+    m = batman.TransitModel(OptimizedParams, SamplePoints,nthreads = BatmansThreads)
     flux = m.light_curve(OptimizedParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
@@ -557,8 +557,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     StringData = ""
 
-    DebugFlux = batman.TransitModel(OptimizedParams,
-                                    DataX).light_curve(OptimizedParams)
+    DebugFlux = batman.TransitModel(OptimizedParams,DataX,nthreads = BatmansThreads).light_curve(OptimizedParams)
 
     for i in range(len(DataX)):
         StringData += (str(DebugFlux[i]) + "\n")
@@ -590,13 +589,41 @@ def RunOptimizationOnDataInputFile(Priors):
     matplot.gca().add_artist(ChiAnchoredTextBox)
     matplot.legend(loc=2, borderaxespad=0)
 
+
+    #Enable this to see a graph of the values the priors would generate
+    #All priors must be assigned a value for this to work
+    #If this graph is too far from the data and has low uncertainty, this can skew the fit, or result in a high chisqr value even if the fit is good, because it does not align with the priors.
+    ShowPriorGraph = False
+    if(ShowPriorGraph):
+        PriorParams = batman.TransitParams()
+
+        PriorParams.t0 = PriorsDict["t0"][0]  #time of inferior conjunction
+        PriorParams.per = PriorsDict["per"][0]  #orbital period
+        PriorParams.rp = PriorsDict["rp"][0]  #planet radius (in units of stellar radii)
+        PriorParams.a = PriorsDict["a"][0]  #semi-major axis (in units of stellar radii)
+        PriorParams.inc = PriorsDict["inc"][0]  #orbital inclination (in degrees)
+        PriorParams.ecc = PriorsDict["ecc"][0]  #eccentricity
+        PriorParams.w = PriorsDict["w"][0]  #longitude of periastron (in degrees)
+        PriorParams.limb_dark = "quadratic"  #limb darkening model
+        PriorParams.u = [PriorsDict["u1"][0], PriorsDict["u2"][0]]  #limb darkening coefficients [u1, u2]
+
+
+        SamplePoints = np.linspace(MinX, MaxX, 10000)
+        Flux = batman.TransitModel(PriorParams, SamplePoints,nthreads = BatmansThreads).light_curve(PriorParams)
+        matplot.plot(SamplePoints, Flux, "-", label="Prior Graph")
+
     EndTimeRecording()
 
     print("\nCompleted")
 
     global NelderEvaluations
-    print(NelderEvaluations)
+    print("Nelder Iterations :",NelderEvaluations)
     NelderEvaluations = 0
+
+    global LBMIterations
+    print("LBM Iterations :",LBMIterations)
+    LBMIterations = 0
+
     #Display plotted data
     #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
     global TestAvergageTimeMode
@@ -613,13 +640,14 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     OverlayMode = False
 
     #Show limits values are allowed between
-    HighlightBoundsMode = False
+    HighlightBoundsMode = True
 
     NewDataX = DataX
     NewDataY = DataY
     NewNumberOfDataPoints = -1
 
-    TransitModel = batman.TransitModel(Parameters, DataX)
+    global BatmansThreads
+    TransitModel = batman.TransitModel(Parameters, DataX,nthreads = BatmansThreads)
     LightCurve = TransitModel.light_curve(Parameters)
 
     StandardDeviation = (np.std(DataY - LightCurve))
@@ -703,11 +731,13 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
                         #HeatMapColors.append((1.0,0.647,0,0.9))
                         HeatMapColors.append((0, 0, 0, 0.9))
 
-                #matplot.scatter(DataX, DataY, color=HeatMapColors, s=8)
+                matplot.scatter(DataX, DataY, color=HeatMapColors, s=8)
+
+
 
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
-        m = batman.TransitModel(Parameters, SamplePoints)
+        m = batman.TransitModel(Parameters, SamplePoints,nthreads = BatmansThreads)
         LightCurve = m.light_curve(Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")

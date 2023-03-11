@@ -51,6 +51,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
+
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
 #Visual modifier only
@@ -162,10 +163,12 @@ def GetArrayBounds(DataArray):
 NelderEvaluations = 0
 
 
+'''
 def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
 
     ParamaterValues = Params.valuesdict()
-    '''
+    
+    ''
     FittingTransityFunctionParams = batman.TransitParams()
 
     #Maybe add function to copy params from parameter values dict, 
@@ -178,18 +181,25 @@ def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
     FittingTransityFunctionParams.w = ParamaterValues["w"]                        #longitude of periastron (in degrees)
     FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
-    '''
+    ''
+
 
     global NelderEvaluations
     NelderEvaluations += 1
 
     #Will try to minimize returned value
     return (CalculateChiSqr(DataX, DataY, Params, DataERROR))
+'''
 
 LBMIterations = 0
-def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors):
-    global LBMIterations
-    LBMIterations+=1
+def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
+
+    if(IsNelder):
+        global LBMIterations
+        LBMIterations+=1
+    else:
+        global NelderEvaluations
+        NelderEvaluations+=1
 
     ParamaterValues = Params.valuesdict()
 
@@ -205,6 +215,7 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors):
     FittingTransityFunctionParams.limb_dark = "quadratic"  #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]  #limb darkening coefficients [u1, u2]
 
+    # * ParamaterValues["ScalingMultiplier"]
     global BatmansThreads
     Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
 
@@ -320,9 +331,9 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if (not UseLBM):
         OptimizedFunctionToReturn = lmfit.minimize(
-            CustomChiSqrInputFunction,
+            LmfitInputFunction,
             InputParams,
-            args=(DataX, DataY, DataERROR, Priors),
+            args=(DataX, DataY, DataERROR, Priors, True),
             method="nelder",
             calc_covar=True,
             max_nfev=None,
@@ -342,7 +353,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         OptimizedFunctionToReturn = lmfit.minimize(
             LmfitInputFunction,
             InputParams,
-            args=(DataX, DataY, DataERROR, Priors),
+            args=(DataX, DataY, DataERROR, Priors, False),
             method="leastsq",
             calc_covar=True,
             max_nfev=None,

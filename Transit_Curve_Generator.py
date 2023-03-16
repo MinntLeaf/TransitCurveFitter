@@ -43,9 +43,10 @@ Priors = [
     [0.0, 999],  #ecc
     [1.0, 999],  #w
     [-0.9, 999],  #u1
-    [-0.9, 999]  #u2
+    [-0.9, 999],  #u2
+    [1.0, 999]  #ScalingMultiplier
 ]
-ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'ScalingMultiplier'
 PriorsDict = dict()
 #Zip function 'links' objects together like an array of arrays
 for Name, Prior in zip(ParamNames, Priors):
@@ -108,10 +109,11 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
     TransiteParams = ConvertFitParamatersToTransitParamaters(Params)
+    ParamsDictionary = Params.valuesdict()
 
     global BatmansThreads
     m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
-    flux = m.light_curve(TransiteParams)
+    flux = m.light_curve(TransiteParams) * ParamsDictionary["ScalingMultiplier"]
 
     CheckedOptimizedChiSqr = 0
 
@@ -215,9 +217,9 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     FittingTransityFunctionParams.limb_dark = "quadratic"  #limb darkening model
     FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]  #limb darkening coefficients [u1, u2]
 
-    # * ParamaterValues["ScalingMultiplier"]
     global BatmansThreads
-    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
+    #print(ParamaterValues["ScalingMultiplier"])
+    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams) * ParamaterValues["ScalingMultiplier"]
 
     ReturnChiArray = abs(DataY - Flux)
 
@@ -249,6 +251,15 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     #Check 'a' parameter is set properly, do not leave as initialized value
     #print(Params.valuesdict(),str(DataY-Flux))
 
+    for i in ReturnChiArray:
+        if(i < 0):
+            print(i)
+
+    #if(IsNelder):
+    #    return (np.sum(ReturnChiArray))
+    #else:
+    #    return (ReturnChiArray)
+
     return (ReturnChiArray)
 
 
@@ -262,15 +273,16 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     if (UseLBM and StartingParameters is not None):
         if (StartingParameters is not None):
             #Lmfit version
-            InputParams.add("t0",value=StartingParameters.t0,min=MinX,max=MaxX)  #Max?
-            InputParams.add("per",value=StartingParameters.per,min=0.0,max=MaxX)
-            InputParams.add("rp", value=StartingParameters.rp, min=0, max=10.0)
-            InputParams.add("a", value=StartingParameters.a, min=1.0,max=90)  #What should Max Bound be?
-            InputParams.add("inc",value=StartingParameters.inc,min=60,max=90)
-            InputParams.add("ecc",value=StartingParameters.ecc,min=0.0,max=1.0)
-            InputParams.add("w",value=StartingParameters.w,min=0.0,max=360.0)
-            InputParams.add("u1",value=StartingParameters.u[0],min=-1.0,max=1.0)
-            InputParams.add("u2",value=StartingParameters.u[1],min=-1.0,max=1.0)
+            InputParams.add("t0",value=StartingParameters["t0"],min=MinX,max=MaxX)  #Max?
+            InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX)
+            InputParams.add("rp", value=StartingParameters["rp"], min=0, max=10.0)
+            InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #What should Max Bound be?
+            InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90)
+            InputParams.add("ecc",value=StartingParameters["ecc"],min=0.0,max=1.0)
+            InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0)
+            InputParams.add("u1",value=StartingParameters["u1"],min=-1.0,max=1.0)
+            InputParams.add("u2",value=StartingParameters["u2"],min=-1.0,max=1.0)
+            InputParams.add("ScalingMultiplier", value=StartingParameters["ScalingMultiplier"], min=0.0001, max=10.0)
         else:
             if (Priors is not None):
                 #Lmfit version
@@ -281,8 +293,9 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
                 InputParams.add("inc", value=Priors[4][0], min=60, max=90)
                 InputParams.add("ecc", value=Priors[5][0], min=0.0, max=1.0)
                 InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
-                InputParams.add("u1", value=Priors[7][0][0], min=-1.0, max=1.0)
-                InputParams.add("u2", value=Priors[8][0][1], min=-1.0, max=1.0)
+                InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
+                InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
+                InputParams.add("ScalingMultiplier", value=Priors[9], min=0.0001, max=10.0)
     else:
         #Minimize version
 
@@ -296,6 +309,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InitialValue_w = 0.0
         InitialValue_u1 = 0.0
         InitialValue_u2 = 0.0
+        InitialValue_ScalingMultiplier = 0.0
 
         if (Priors is not None):
             if (not Priors[0] == None):
@@ -316,6 +330,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
                 InitialValue_u1 = Priors[7][0]
             if (not Priors[8] == None):
                 InitialValue_u2 = Priors[8][0]
+            if (not Priors[9] == None):
+                InitialValue_ScalingMultiplier = Priors[9][0]
 
         InputParams.add("t0", value=InitialValue_t0, min=MinX, max=MaxX)  #Max?
         InputParams.add("per", value=InitialValue_per, min=0.0, max=MaxX)
@@ -326,6 +342,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w", value=InitialValue_w, min=0.0, max=360.0)
         InputParams.add("u1", value=InitialValue_u1, min=-1.0, max=1.0)
         InputParams.add("u2", value=InitialValue_u2, min=-1.0, max=1.0)
+        InputParams.add("ScalingMultiplier", value=InitialValue_ScalingMultiplier, min=0.0001, max=10.0)
+        
 
     OptimizedFunctionToReturn = None
 
@@ -468,8 +486,8 @@ def RunOptimizationOnDataInputFile(Priors):
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
-    OptimizedParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction)
-
+    OptimizedBatmanParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction.params)
+    OptimizedParamsDictionary = OptimizedFunction.params
     '''
     #Debugging
     print("HERE")
@@ -480,7 +498,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Generate function based on extracted parameters
     global BatmansThreads
-    FirstOptimizedFunction = batman.TransitModel(OptimizedParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedParams)
+    FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams) * OptimizedParamsDictionary["ScalingMultiplier"]
 
     #Calculate error from diference between first attempt created function, and given values
     if (not DataIncludedErrorBars):
@@ -498,7 +516,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     if(RemoveOutliers):
         #Remove Outlier values
-        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParams)
+        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParamsDictionary)
 
         DataX = NewDataValues[0]
         DataY = NewDataValues[1]
@@ -519,11 +537,12 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Run second time, this time having removed outliers and calculated error values if they were not provided
     CheckTime(1, True)
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParams)
+    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
     CheckTime(1, False)
 
     FinalOptimizedFunction = ThirdOptimizedFunction
-    OptimizedParams = ExtractTransitParametersFromFittedFunction(ThirdOptimizedFunction)
+    BatmanParams = ExtractTransitParametersFromFittedFunction(ThirdOptimizedFunction.params)
+    DictionaryParams = ThirdOptimizedFunction.params
 
     #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
     #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
@@ -554,33 +573,33 @@ def RunOptimizationOnDataInputFile(Priors):
         print(name + ' : ' + str(FinalOptimizedFunction.params[name].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY,
-                                             ThirdOptimizedFunction.params,
-                                             DataERROR)
-    print("\n\n",MinX,"   ",MaxX)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, ThirdOptimizedFunction.params, DataERROR)
+    #print("\n\n",MinX,"   ",MaxX)
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
-    m = batman.TransitModel(OptimizedParams, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(OptimizedParams)
+    m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+    flux = m.light_curve(BatmanParams) * FinalOptimizedFunction.params["ScalingMultiplier"]
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
+    '''
     #Debug Logging START
 
     StringData = ""
 
-    DebugFlux = batman.TransitModel(OptimizedParams,DataX,nthreads = BatmansThreads).light_curve(OptimizedParams)
+    DebugFlux = batman.TransitModel(BatmanParams,DataX,nthreads = BatmansThreads).light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
 
     for i in range(len(DataX)):
         StringData += (str(DebugFlux[i]) + "\n")
-    '''
+    
     print("-----")
 
     print(str(np.std((DataY-DebugFlux))))
 
     print("-----")
+    
+    with open("Output.txt", "w") as File:
+        Lines = File.writelines(StringData)
     '''
-    #with open("Output.txt", "w") as File:
-    #    Lines = File.writelines(StringData)
 
     print("\n--- Checked Chi Sqr ---")
     print("ChiSqr : " + str(CheckedOptimizedChiSqr))
@@ -647,7 +666,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     TestMode = False
     #Only valid if 'TestMode' is active
 
-    #will not halt further execution of the program, instead overlaying the scatter values or heat map underneath the final graph
+    #will not halt further execution of the program, instead overlaying the scatter points or heat map underneath the final graph
     OverlayMode = False
 
     #Show limits values are allowed between
@@ -657,9 +676,11 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     NewDataY = DataY
     NewNumberOfDataPoints = -1
 
+    BatmanParams = ExtractTransitParametersFromFittedFunction(Parameters)
+
     global BatmansThreads
-    TransitModel = batman.TransitModel(Parameters, DataX,nthreads = BatmansThreads)
-    LightCurve = TransitModel.light_curve(Parameters)
+    TransitModel = batman.TransitModel(BatmanParams, DataX,nthreads = BatmansThreads)
+    LightCurve = TransitModel.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
 
     StandardDeviation = (np.std(DataY - LightCurve))
 
@@ -748,8 +769,8 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
-        m = batman.TransitModel(Parameters, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = m.light_curve(Parameters)
+        m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
 
@@ -781,7 +802,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     RemovalPercentage = (100/len(DataX)*ValuesRemoved)
     print("Values Removed By Outlier Rejection : " + str(ValuesRemoved) + " : Percentage Of Total Values : " + str(int(RemovalPercentage*100)/100) + "%")
-    if(RemovalPercentage > 10):
+    if(RemovalPercentage > 7.5):
         print("Warning :",str(int(RemovalPercentage*100)/100),"% of input values removed by outlier rejection function. Is the fit being used to Values Removed By Outlier Rejection\nThis is concerningly high.")
 
     return (NewDataX, NewDataY, NewNumberOfDataPoints, IndexesToRemove)
@@ -791,7 +812,7 @@ def ExtractTransitParametersFromFittedFunction(Function):
 
     #Have to manually assign params instead of using 'OptimizedFunction.params' because 'limb_dark' is not assigned by the function
 
-    return (ConvertFitParamatersToTransitParamaters(Function.params))
+    return (ConvertFitParamatersToTransitParamaters(Function))
 
 
 def GetArrayIsNotNone(InputArray):
@@ -817,18 +838,21 @@ def EndTimeRecording():
 
 def ConvertFitParamatersToTransitParamaters(InputParam):
 
-    ParamaterValues = InputParam.valuesdict()
+    #All paramaters values being sent from one fucntion to another, shall now be sent as dictionaries
+    #No exceptions
+    #This is to simplify things, as right now there are 3 types of paramaters being juggled arround and I am no longer able to keep track of which is which
+
     FittingTransitFunctionParams = batman.TransitParams()
 
-    FittingTransitFunctionParams.t0 = ParamaterValues["t0"]  #time of inferior conjunction
-    FittingTransitFunctionParams.per = ParamaterValues["per"]  #orbital period
-    FittingTransitFunctionParams.rp = ParamaterValues["rp"]  #planet radius (in units of stellar radii)
-    FittingTransitFunctionParams.a = ParamaterValues["a"]  #semi-major axis (in units of stellar radii)
-    FittingTransitFunctionParams.inc = ParamaterValues["inc"]  #orbital inclination (in degrees)
-    FittingTransitFunctionParams.ecc = ParamaterValues["ecc"]  #eccentricity
-    FittingTransitFunctionParams.w = ParamaterValues["w"]  #longitude of periastron (in degrees)
+    FittingTransitFunctionParams.t0 = InputParam["t0"]  #time of inferior conjunction
+    FittingTransitFunctionParams.per = InputParam["per"]  #orbital period
+    FittingTransitFunctionParams.rp = InputParam["rp"]  #planet radius (in units of stellar radii)
+    FittingTransitFunctionParams.a = InputParam["a"]  #semi-major axis (in units of stellar radii)
+    FittingTransitFunctionParams.inc = InputParam["inc"]  #orbital inclination (in degrees)
+    FittingTransitFunctionParams.ecc = InputParam["ecc"]  #eccentricity
+    FittingTransitFunctionParams.w = InputParam["w"]  #longitude of periastron (in degrees)
     FittingTransitFunctionParams.limb_dark = "quadratic"  #limb darkening model
-    FittingTransitFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]  #limb darkening coefficients [u1, u2]
+    FittingTransitFunctionParams.u = [InputParam["u1"], InputParam["u2"]]  #limb darkening coefficients [u1, u2]
 
     return (FittingTransitFunctionParams)
 

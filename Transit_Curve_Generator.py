@@ -44,7 +44,7 @@ Priors = [
     [1.0, 999],  #w
     [-0.9, 999],  #u1
     [-0.9, 999],  #u2
-    [1.0, 999]  #ScalingMultiplier
+    [9, 999]  #ScalingMultiplier
 ]
 ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'ScalingMultiplier'
 PriorsDict = dict()
@@ -235,8 +235,8 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
             ModifiedPriorValues.append(
-                abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName]) /
-                    PriorsDict[ParamName][1]))
+                abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName]) / PriorsDict[ParamName][1]))
+
             FoundValidPriorValid = True
             #print(str((abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))))
 
@@ -535,6 +535,8 @@ def RunOptimizationOnDataInputFile(Priors):
             #Recalcualte error values with the outlier values removed
             DataERROR = (DataY * 0 + np.std((DataY - UpdatedLightValues)))
 
+
+
     #Run second time, this time having removed outliers and calculated error values if they were not provided
     CheckTime(1, True)
     ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
@@ -563,14 +565,14 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
 
     print("-OPTIMIZED PARAMETERS-")
-    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
+    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', "ScalingMultiplier"
     for name in parameter_names:
-        print(name + ' : ' + str(FinalOptimizedFunction.params[name].value))
+        print(name + ' : ' + str(DictionaryParams[name].value))
     print("\n")
 
     print("-OPTIMIZED PARAMETER UNCERTAINTY VALUES-")
     for name in parameter_names:
-        print(name + ' : ' + str(FinalOptimizedFunction.params[name].stderr))
+        print(name + ' : ' + str(DictionaryParams[name].stderr))
     print("\n")
 
     CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, ThirdOptimizedFunction.params, DataERROR)
@@ -578,7 +580,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(BatmanParams) * FinalOptimizedFunction.params["ScalingMultiplier"]
+    flux = m.light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
     '''

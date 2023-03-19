@@ -44,7 +44,7 @@ Priors = [
     [1.0, 999],  #w
     [-0.9, 999],  #u1
     [-0.9, 999],  #u2
-    [9, 999]  #ScalingMultiplier
+    [1, 999]  #ScalingMultiplier
 ]
 ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'ScalingMultiplier'
 PriorsDict = dict()
@@ -52,6 +52,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
+PolynomialOrder = 4
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -108,7 +109,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
 def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
-    TransiteParams = ConvertFitParamatersToTransitParamaters(Params)
+    TransiteParams = ConvertFitParametersToTransitParameters(Params)
     ParamsDictionary = Params.valuesdict()
 
     global BatmansThreads
@@ -130,12 +131,12 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
     #Removing this section decreases run time, because it increases the ammount of cycles nelder runs when it is included.
     #Previouse comments about this section increasing run time because it was slow were wrong, this section is not to blame. I was wrong.
-    ParamaterValues = Params.valuesdict()
+    ParameterValues = Params.valuesdict()
     global PriorsDict
 
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
-            CheckedOptimizedChiSqr += ((PriorsDict[ParamName][0] - ParamaterValues[ParamName]) /PriorsDict[ParamName][1])**2
+            CheckedOptimizedChiSqr += ((PriorsDict[ParamName][0] - ParameterValues[ParamName]) /PriorsDict[ParamName][1])**2
     
     
 
@@ -168,21 +169,21 @@ NelderEvaluations = 0
 '''
 def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
 
-    ParamaterValues = Params.valuesdict()
+    ParameterValues = Params.valuesdict()
     
     ''
     FittingTransityFunctionParams = batman.TransitParams()
 
     #Maybe add function to copy params from parameter values dict, 
-    FittingTransityFunctionParams.t0 = ParamaterValues["t0"]                        #time of inferior conjunction
-    FittingTransityFunctionParams.per = ParamaterValues["per"]                       #orbital period
-    FittingTransityFunctionParams.rp = ParamaterValues["rp"]                       #planet radius (in units of stellar radii)
-    FittingTransityFunctionParams.a = ParamaterValues["a"]                        #semi-major axis (in units of stellar radii)
-    FittingTransityFunctionParams.inc = ParamaterValues["inc"]                      #orbital inclination (in degrees)
-    FittingTransityFunctionParams.ecc = ParamaterValues["ecc"]                       #eccentricity
-    FittingTransityFunctionParams.w = ParamaterValues["w"]                        #longitude of periastron (in degrees)
+    FittingTransityFunctionParams.t0 = ParameterValues["t0"]                        #time of inferior conjunction
+    FittingTransityFunctionParams.per = ParameterValues["per"]                       #orbital period
+    FittingTransityFunctionParams.rp = ParameterValues["rp"]                       #planet radius (in units of stellar radii)
+    FittingTransityFunctionParams.a = ParameterValues["a"]                        #semi-major axis (in units of stellar radii)
+    FittingTransityFunctionParams.inc = ParameterValues["inc"]                      #orbital inclination (in degrees)
+    FittingTransityFunctionParams.ecc = ParameterValues["ecc"]                       #eccentricity
+    FittingTransityFunctionParams.w = ParameterValues["w"]                        #longitude of periastron (in degrees)
     FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
-    FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]      #limb darkening coefficients [u1, u2]
+    FittingTransityFunctionParams.u = [ParameterValues["u1"], ParameterValues["u2"]]      #limb darkening coefficients [u1, u2]
     ''
 
 
@@ -203,28 +204,28 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
         global NelderEvaluations
         NelderEvaluations+=1
 
-    ParamaterValues = Params.valuesdict()
+    ParameterValues = Params.valuesdict()
 
     FittingTransityFunctionParams = batman.TransitParams()
-
-    FittingTransityFunctionParams.t0 = ParamaterValues["t0"]  #time of inferior conjunction
-    FittingTransityFunctionParams.per = ParamaterValues["per"]  #orbital period
-    FittingTransityFunctionParams.rp = ParamaterValues["rp"]  #planet radius (in units of stellar radii)
-    FittingTransityFunctionParams.a = ParamaterValues["a"]  #semi-major axis (in units of stellar radii)
-    FittingTransityFunctionParams.inc = ParamaterValues["inc"]  #orbital inclination (in degrees)
-    FittingTransityFunctionParams.ecc = ParamaterValues["ecc"]  #eccentricity
-    FittingTransityFunctionParams.w = ParamaterValues["w"]  #longitude of periastron (in degrees)
+    print(ParameterValues)
+    FittingTransityFunctionParams.t0 = ParameterValues["t0"]  #time of inferior conjunction
+    FittingTransityFunctionParams.per = ParameterValues["per"]  #orbital period
+    FittingTransityFunctionParams.rp = ParameterValues["rp"]  #planet radius (in units of stellar radii)
+    FittingTransityFunctionParams.a = ParameterValues["a"]  #semi-major axis (in units of stellar radii)
+    FittingTransityFunctionParams.inc = ParameterValues["inc"]  #orbital inclination (in degrees)
+    FittingTransityFunctionParams.ecc = ParameterValues["ecc"]  #eccentricity
+    FittingTransityFunctionParams.w = ParameterValues["w"]  #longitude of periastron (in degrees)
     FittingTransityFunctionParams.limb_dark = "quadratic"  #limb darkening model
-    FittingTransityFunctionParams.u = [ParamaterValues["u1"], ParamaterValues["u2"]]  #limb darkening coefficients [u1, u2]
+    FittingTransityFunctionParams.u = [ParameterValues["u1"], ParameterValues["u2"]]  #limb darkening coefficients [u1, u2]
+
 
     global BatmansThreads
-    #print(ParamaterValues["ScalingMultiplier"])
-    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams) * ParamaterValues["ScalingMultiplier"]
+    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams) * ParameterValues["ScalingMultiplier"]
+    Flux = ApplyPolyMultiplier(DataX,Flux, ParameterValues)
+
 
     ReturnChiArray = abs(DataY - Flux)
 
-    #for Val in ReturnChiArray:
-    #    if(Val)
 
     if (not DataERROR is None):
         ReturnChiArray /= DataERROR
@@ -234,17 +235,15 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     ModifiedPriorValues = []
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
-            ModifiedPriorValues.append(
-                abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName]) / PriorsDict[ParamName][1]))
+            ModifiedPriorValues.append(abs((PriorsDict[ParamName][0] - ParameterValues[ParamName]) / PriorsDict[ParamName][1]))
 
             FoundValidPriorValid = True
-            #print(str((abs((PriorsDict[ParamName][0] - ParamaterValues[ParamName])/PriorsDict[ParamName][1]))))
+            #print(str((abs((PriorsDict[ParamName][0] - ParameterValues[ParamName])/PriorsDict[ParamName][1]))))
 
     FoundValidPriorValid = False
 
     if (FoundValidPriorValid):
-        ReturnChiArray = np.concatenate((ReturnChiArray, ModifiedPriorValues),
-                                        axis=0)
+        ReturnChiArray = np.concatenate((ReturnChiArray, ModifiedPriorValues), axis=0)
 
     #Debug logging
     #If initial params are '0' minor changes will not affect the result enough for proper fitting
@@ -269,80 +268,53 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     MinX = Bounds[0]
     MaxX = Bounds[1]
 
+    global PolynomialOrder
+
     InputParams = lmfit.Parameters()
-    if (UseLBM and StartingParameters is not None):
-        if (StartingParameters is not None):
-            #Lmfit version
-            InputParams.add("t0",value=StartingParameters["t0"],min=MinX,max=MaxX)  #Max?
-            InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX)
-            InputParams.add("rp", value=StartingParameters["rp"], min=0, max=10.0)
-            InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #What should Max Bound be?
-            InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90)
-            InputParams.add("ecc",value=StartingParameters["ecc"],min=0.0,max=1.0)
-            InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0)
-            InputParams.add("u1",value=StartingParameters["u1"],min=-1.0,max=1.0)
-            InputParams.add("u2",value=StartingParameters["u2"],min=-1.0,max=1.0)
-            InputParams.add("ScalingMultiplier", value=StartingParameters["ScalingMultiplier"], min=0.0001, max=10.0)
-        else:
-            if (Priors is not None):
-                #Lmfit version
-                InputParams.add("t0", value=Priors[0][0], min=MinX,max=MaxX)  #Max?
-                InputParams.add("per", value=Priors[1][0], min=0.0, max=MaxX)
-                InputParams.add("rp", value=Priors[2][0], min=0, max=10.0)
-                InputParams.add("a", value=Priors[3][0], min=1.0,max=90)  #What should Max Bound be?
-                InputParams.add("inc", value=Priors[4][0], min=60, max=90)
-                InputParams.add("ecc", value=Priors[5][0], min=0.0, max=1.0)
-                InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
-                InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
-                InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
-                InputParams.add("ScalingMultiplier", value=Priors[9], min=0.0001, max=10.0)
+
+    if (StartingParameters is not None):
+        #Lmfit version
+        InputParams.add("t0",value=StartingParameters["t0"],min=MinX,max=MaxX)  #Max?
+        InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX)
+        InputParams.add("rp", value=StartingParameters["rp"], min=0, max=10.0)
+        InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #What should Max Bound be?
+        InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90)
+        InputParams.add("ecc",value=StartingParameters["ecc"],min=0.0,max=1.0)
+        InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0)
+        InputParams.add("u1",value=StartingParameters["u1"],min=-1.0,max=1.0)
+        InputParams.add("u2",value=StartingParameters["u2"],min=-1.0,max=1.0)
+        InputParams.add("ScalingMultiplier", value=StartingParameters["ScalingMultiplier"], min=0.0001, max=10.0)
+            
+    elif (Priors is not None):
+        #Lmfit version
+        InputParams.add("t0", value=Priors[0][0], min=MinX,max=MaxX)  #Max?
+        InputParams.add("per", value=Priors[1][0], min=0.0, max=MaxX)
+        InputParams.add("rp", value=Priors[2][0], min=0, max=10.0)
+        InputParams.add("a", value=Priors[3][0], min=1.0,max=90)  #What should Max Bound be?
+        InputParams.add("inc", value=Priors[4][0], min=60, max=90)
+        InputParams.add("ecc", value=Priors[5][0], min=0.0, max=1.0)
+        InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
+        InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
+        InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
+        InputParams.add("ScalingMultiplier", value=Priors[9][0], min=0.0001, max=10.0)
+
     else:
-        #Minimize version
+        #Backup 
+        InputParams.add("t0", value=MaxX/2, min=MinX, max=MaxX)  #Max?
+        InputParams.add("per", value=MaxX/2, min=0.0, max=MaxX)
+        InputParams.add("rp", value=5, min=0, max=10.0)
+        InputParams.add("a", value=40, min=1.0,max=90)  #What should Max Bound be?
+        InputParams.add("inc", value=70, min=60, max=90)
+        InputParams.add("ecc", value=0.5, min=0.0, max=1.0)
+        InputParams.add("w", value=40, min=0.0, max=360.0)
+        InputParams.add("u1", value=0.5, min=-1.0, max=1.0)
+        InputParams.add("u2", value=0.5, min=-1.0, max=1.0)
+        InputParams.add("ScalingMultiplier", value=1, min=0.0001, max=10.0)
 
-        #Probably better way to handle this
-        InitialValue_t0 = 0.0
-        InitialValue_per = 0.0
-        InitialValue_rp = 0.0
-        InitialValue_a = 0.0
-        InitialValue_inc = 0.0
-        InitialValue_ecc = 0.0
-        InitialValue_w = 0.0
-        InitialValue_u1 = 0.0
-        InitialValue_u2 = 0.0
-        InitialValue_ScalingMultiplier = 0.0
+    if(PolynomialOrder > 0):
+        for PolyIndex in range(0,PolynomialOrder):
+            InputParams.add("PolyVal" + str(PolyIndex), value=1, min=-10000, max=10000)
 
-        if (Priors is not None):
-            if (not Priors[0] == None):
-                InitialValue_t0 = Priors[0][0]
-            if (not Priors[1] == None):
-                InitialValue_per = Priors[1][0]
-            if (not Priors[2] == None):
-                InitialValue_rp = Priors[2][0]
-            if (not Priors[3] == None):
-                InitialValue_a = Priors[3][0]
-            if (not Priors[4] == None):
-                InitialValue_inc = Priors[4][0]
-            if (not Priors[5] == None):
-                InitialValue_ecc = Priors[5][0]
-            if (not Priors[6] == None):
-                InitialValue_w = Priors[6][0]
-            if (not Priors[7] == None):
-                InitialValue_u1 = Priors[7][0]
-            if (not Priors[8] == None):
-                InitialValue_u2 = Priors[8][0]
-            if (not Priors[9] == None):
-                InitialValue_ScalingMultiplier = Priors[9][0]
-
-        InputParams.add("t0", value=InitialValue_t0, min=MinX, max=MaxX)  #Max?
-        InputParams.add("per", value=InitialValue_per, min=0.0, max=MaxX)
-        InputParams.add("rp", value=InitialValue_rp, min=0, max=10.0)
-        InputParams.add("a", value=InitialValue_a, min=1.0,max=90)  #What should Max Bound be?
-        InputParams.add("inc", value=InitialValue_inc, min=60, max=90)
-        InputParams.add("ecc", value=InitialValue_ecc, min=0.0, max=1.0)
-        InputParams.add("w", value=InitialValue_w, min=0.0, max=360.0)
-        InputParams.add("u1", value=InitialValue_u1, min=-1.0, max=1.0)
-        InputParams.add("u2", value=InitialValue_u2, min=-1.0, max=1.0)
-        InputParams.add("ScalingMultiplier", value=InitialValue_ScalingMultiplier, min=0.0001, max=10.0)
         
 
     OptimizedFunctionToReturn = None
@@ -395,38 +367,38 @@ def RunOptimizationOnDataInputFile(Priors):
     
     '''
     #Debug Testing
-    TestParamaters = batman.TransitParams()
+    TestParameters = batman.TransitParams()
     
     UseGoodValues = True
 
     if(UseGoodValues != True):
         #Bad
-        TestParamaters.t0 = 0.97779202
-        TestParamaters.per = 3.14110619
-        TestParamaters.rp = 0.10529006
-        TestParamaters.a =0.10529006
-        TestParamaters.inc = 0.10529006
-        TestParamaters.ecc = 0.10529006
-        TestParamaters.w = 0.10529006
-        TestParamaters.limb_dark = "quadratic"
-        TestParamaters.u = [-0.03773462, 0.56399941]
+        TestParameters.t0 = 0.97779202
+        TestParameters.per = 3.14110619
+        TestParameters.rp = 0.10529006
+        TestParameters.a =0.10529006
+        TestParameters.inc = 0.10529006
+        TestParameters.ecc = 0.10529006
+        TestParameters.w = 0.10529006
+        TestParameters.limb_dark = "quadratic"
+        TestParameters.u = [-0.03773462, 0.56399941]
     else:
         #Good
-        TestParamaters.t0 = 0.9771297617522302
-        TestParamaters.per = 3.1411255188855454
-        TestParamaters.rp = 0.10448573735254096
-        TestParamaters.a =1.4315349098124923
-        TestParamaters.inc = 63.43883728462587
-        TestParamaters.ecc = 0.9497616962968043
-        TestParamaters.w = 2.050529211138452
-        TestParamaters.limb_dark = "quadratic"
-        TestParamaters.u = [-0.05394222113055169, -0.05394222113055169]
+        TestParameters.t0 = 0.9771297617522302
+        TestParameters.per = 3.1411255188855454
+        TestParameters.rp = 0.10448573735254096
+        TestParameters.a =1.4315349098124923
+        TestParameters.inc = 63.43883728462587
+        TestParameters.ecc = 0.9497616962968043
+        TestParameters.w = 2.050529211138452
+        TestParameters.limb_dark = "quadratic"
+        TestParameters.u = [-0.05394222113055169, -0.05394222113055169]
 
     SamplePoints = np.linspace(0.0, 26.996528, 10000)
     print(SamplePoints)
     global BatmansThreads
-    m = batman.TransitModel(TestParamaters, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(TestParamaters)
+    m = batman.TransitModel(TestParameters, SamplePoints,nthreads = BatmansThreads)
+    flux = m.light_curve(TestParameters)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
     matplot.show()
@@ -551,7 +523,7 @@ def RunOptimizationOnDataInputFile(Priors):
     DataIncludedErrorBars = True
 
     #Debug Fit Report
-    print(fit_report(FinalOptimizedFunction))
+    #print(fit_report(FinalOptimizedFunction))
     print("\n")
 
     #Display points with error bars
@@ -581,6 +553,7 @@ def RunOptimizationOnDataInputFile(Priors):
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
     flux = m.light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
+    flux = ApplyPolyMultiplier(DataX, flux, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
     '''
@@ -683,6 +656,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     global BatmansThreads
     TransitModel = batman.TransitModel(BatmanParams, DataX,nthreads = BatmansThreads)
     LightCurve = TransitModel.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+    LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
 
     StandardDeviation = (np.std(DataY - LightCurve))
 
@@ -773,6 +747,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+        LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
 
@@ -814,7 +789,7 @@ def ExtractTransitParametersFromFittedFunction(Function):
 
     #Have to manually assign params instead of using 'OptimizedFunction.params' because 'limb_dark' is not assigned by the function
 
-    return (ConvertFitParamatersToTransitParamaters(Function))
+    return (ConvertFitParametersToTransitParameters(Function))
 
 
 def GetArrayIsNotNone(InputArray):
@@ -838,11 +813,11 @@ def EndTimeRecording():
     print("Total Time : " + str(time.time() - ProgramStartTime))
 
 
-def ConvertFitParamatersToTransitParamaters(InputParam):
+def ConvertFitParametersToTransitParameters(InputParam):
 
-    #All paramaters values being sent from one fucntion to another, shall now be sent as dictionaries
+    #All parameters values being sent from one fucntion to another, shall now be sent as dictionaries
     #No exceptions
-    #This is to simplify things, as right now there are 3 types of paramaters being juggled arround and I am no longer able to keep track of which is which
+    #This is to simplify things, as right now there are 3 types of parameters being juggled arround and I am no longer able to keep track of which is which
 
     FittingTransitFunctionParams = batman.TransitParams()
 
@@ -857,6 +832,21 @@ def ConvertFitParamatersToTransitParamaters(InputParam):
     FittingTransitFunctionParams.u = [InputParam["u1"], InputParam["u2"]]  #limb darkening coefficients [u1, u2]
 
     return (FittingTransitFunctionParams)
+
+def ApplyPolyMultiplier(XVal, YVal,  Params):
+
+    global PolynomialOrder
+
+    if(PolynomialOrder > 0):
+        PolyVals = []
+        for PolyVal in range(0,PolynomialOrder):
+            PolyVals.append(Params["PolyVal" + str(PolyVal)])
+        
+        return(YVal * np.polyval(PolyVals, XVal))
+    else:
+        #Can not apply polyvals
+        #Return unmodifed array
+        return(YVal)
 
 
 TestAvergageTimeMode = False

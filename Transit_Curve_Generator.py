@@ -52,7 +52,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 4
+PolynomialOrder = 1
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -110,11 +110,11 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
     TransiteParams = ConvertFitParametersToTransitParameters(Params)
-    ParamsDictionary = Params.valuesdict()
 
     global BatmansThreads
     m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
-    flux = m.light_curve(TransiteParams) * ParamsDictionary["ScalingMultiplier"]
+    flux = m.light_curve(TransiteParams) * Params["ScalingMultiplier"]
+    flux = ApplyPolyMultiplier(DataX,flux,Params)
 
     CheckedOptimizedChiSqr = 0
 
@@ -198,16 +198,16 @@ LBMIterations = 0
 def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
     if(IsNelder):
-        global LBMIterations
-        LBMIterations+=1
-    else:
         global NelderEvaluations
         NelderEvaluations+=1
+    else:
+        global LBMIterations
+        LBMIterations+=1
 
     ParameterValues = Params.valuesdict()
 
     FittingTransityFunctionParams = batman.TransitParams()
-    print(ParameterValues)
+    #print(ParameterValues)
     FittingTransityFunctionParams.t0 = ParameterValues["t0"]  #time of inferior conjunction
     FittingTransityFunctionParams.per = ParameterValues["per"]  #orbital period
     FittingTransityFunctionParams.rp = ParameterValues["rp"]  #planet radius (in units of stellar radii)
@@ -547,13 +547,13 @@ def RunOptimizationOnDataInputFile(Priors):
         print(name + ' : ' + str(DictionaryParams[name].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, ThirdOptimizedFunction.params, DataERROR)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DictionaryParams, DataERROR)
     #print("\n\n",MinX,"   ",MaxX)
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
     flux = m.light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
-    flux = ApplyPolyMultiplier(DataX, flux, DictionaryParams)
+    flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
     '''
@@ -841,7 +841,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
             PolyVals.append(Params["PolyVal" + str(PolyVal)])
-        
+        print(PolyVals)
         return(YVal * np.polyval(PolyVals, XVal))
     else:
         #Can not apply polyvals

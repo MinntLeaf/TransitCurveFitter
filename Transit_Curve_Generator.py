@@ -52,7 +52,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 1
+PolynomialOrder = 5
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -231,18 +231,18 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
         ReturnChiArray /= DataERROR
 
     global PriorsDict
-    FoundValidPriorValid = False
+    FoundValidPrior = False
     ModifiedPriorValues = []
     for ParamName in PriorsDict.keys():
         if PriorsDict[ParamName][1] is not None:
             ModifiedPriorValues.append(abs((PriorsDict[ParamName][0] - ParameterValues[ParamName]) / PriorsDict[ParamName][1]))
 
-            FoundValidPriorValid = True
+            FoundValidPrior = True
             #print(str((abs((PriorsDict[ParamName][0] - ParameterValues[ParamName])/PriorsDict[ParamName][1]))))
 
-    FoundValidPriorValid = False
+    FoundValidPrior = False
 
-    if (FoundValidPriorValid):
+    if FoundValidPrior:
         ReturnChiArray = np.concatenate((ReturnChiArray, ModifiedPriorValues), axis=0)
 
     #Debug logging
@@ -313,7 +313,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
-            InputParams.add("PolyVal" + str(PolyIndex), value=1, min=-10000, max=10000)
+            InputParams.add("PolyVal" + str(PolyIndex), value=0, min=-1000, max=1000)
 
         
 
@@ -780,8 +780,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     RemovalPercentage = (100/len(DataX)*ValuesRemoved)
     print("Values Removed By Outlier Rejection : " + str(ValuesRemoved) + " : Percentage Of Total Values : " + str(int(RemovalPercentage*100)/100) + "%")
     if(RemovalPercentage > 7.5):
-        print("Warning :",str(int(RemovalPercentage*100)/100),"% of input values removed by outlier rejection function. Is the fit being used to Values Removed By Outlier Rejection\nThis is concerningly high.")
-
+        print("Warning :",str(int(RemovalPercentage*100)/100),"% of input values removed by outlier rejection function. This is concerningly high. Is the fit being used to remove outliers too inaccurate?")
     return (NewDataX, NewDataY, NewNumberOfDataPoints, IndexesToRemove)
 
 
@@ -835,14 +834,21 @@ def ConvertFitParametersToTransitParameters(InputParam):
 
 def ApplyPolyMultiplier(XVal, YVal,  Params):
 
+    #POLYVAL RETURNS IN REVERSE ORDER
+    #x^9+x^8+x^7...
+
     global PolynomialOrder
 
     if(PolynomialOrder > 0):
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
-            PolyVals.append(Params["PolyVal" + str(PolyVal)])
+            if(PolyVal == PolynomialOrder-2):
+                PolyVals.append(1)
+            else:
+                PolyVals.append(0)
+            #PolyVals.append(Params["PolyVal" + str(PolyVal)])
         print(PolyVals)
-        return(YVal * np.polyval(PolyVals, XVal))
+        return(YVal * 1)
     else:
         #Can not apply polyvals
         #Return unmodifed array

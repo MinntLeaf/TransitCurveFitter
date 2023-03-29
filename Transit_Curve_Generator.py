@@ -301,9 +301,12 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
-            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000)
+            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = False)
 
-    print(InputParams)
+    #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
+    #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
+
+    #print(InputParams)
 
     #InputParams.add("Test_1", value=0, min=-1000, max=1000)
     #InputParams.add("Test_2", value=0, min=-1000, max=1000)
@@ -635,14 +638,19 @@ def RunOptimizationOnDataInputFile(Priors):
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
-    TestMode = False
-    #Only valid if 'TestMode' is active
+    print(Parameters['t0'])
+
+    TestMode = True
+    
+    #-Only valid if 'TestMode' is active
 
     #will not halt further execution of the program, instead overlaying the scatter points or heat map underneath the final graph
     OverlayMode = False
 
     #Show limits values are allowed between
     HighlightBoundsMode = True
+
+    #-
 
     NewDataX = DataX
     NewDataY = DataY
@@ -744,7 +752,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
-        LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
+        LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
 
@@ -837,17 +845,18 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
     global PolynomialOrder
 
     if(PolynomialOrder > 0):
+        
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
-            #if(PolyVal == PolynomialOrder-2):
-            #    PolyVals.append(1)
-            #else:
-            #    PolyVals.append(0)
-            PolyVals.append(Params["PolyVal" + str(PolyVal)])
+            if(PolyVal == PolynomialOrder-1):
+                PolyVals.append(1)
+            else:
+                PolyVals.append(0)
+        #PolyVals.append(Params["PolyVal" + str(PolyVal)])
 
-        print(PolyVals)
-
+        #print(np.polyval(PolyVals,XVal))
         return(YVal * np.polyval(PolyVals,XVal))
+        
     else:
         #Can not apply polyvals
         #Return unmodifed array
@@ -869,5 +878,3 @@ else:
         print("\n============")
 
     print(("\n") * 30, "============\nFINISHED\n============\n\nAverage Time :", str(int((time.time() - MultiCountStartTime) / Iterations * 100) / 100))
-
-#Test

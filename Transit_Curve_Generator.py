@@ -18,9 +18,6 @@ from matplotlib.offsetbox import AnchoredText
 #Transit curve calculation package
 import batman
 
-#Only used for testing
-import random
-
 #Profiling library
 import cProfile
 
@@ -52,7 +49,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 5
+PolynomialOrder = 2
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -206,22 +203,13 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
     ParameterValues = Params.valuesdict()
 
-    FittingTransityFunctionParams = batman.TransitParams()
-    #print(ParameterValues)
-    FittingTransityFunctionParams.t0 = ParameterValues["t0"]  #time of inferior conjunction
-    FittingTransityFunctionParams.per = ParameterValues["per"]  #orbital period
-    FittingTransityFunctionParams.rp = ParameterValues["rp"]  #planet radius (in units of stellar radii)
-    FittingTransityFunctionParams.a = ParameterValues["a"]  #semi-major axis (in units of stellar radii)
-    FittingTransityFunctionParams.inc = ParameterValues["inc"]  #orbital inclination (in degrees)
-    FittingTransityFunctionParams.ecc = ParameterValues["ecc"]  #eccentricity
-    FittingTransityFunctionParams.w = ParameterValues["w"]  #longitude of periastron (in degrees)
-    FittingTransityFunctionParams.limb_dark = "quadratic"  #limb darkening model
-    FittingTransityFunctionParams.u = [ParameterValues["u1"], ParameterValues["u2"]]  #limb darkening coefficients [u1, u2]
+
+    FittingTransityFunctionParams = ConvertFitParametersToTransitParameters(ParameterValues)
 
 
     global BatmansThreads
     Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams) * ParameterValues["ScalingMultiplier"]
-    Flux = ApplyPolyMultiplier(DataX,Flux, ParameterValues)
+    Flux = ApplyPolyMultiplier(DataX, Flux, ParameterValues)
 
 
     ReturnChiArray = abs(DataY - Flux)
@@ -313,9 +301,18 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
-            InputParams.add("PolyVal" + str(PolyIndex), value=0, min=-1000, max=1000)
+            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000)
 
-        
+    print(InputParams)
+
+    #InputParams.add("Test_1", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_2", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_3", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_4", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_5", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_6", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_7", value=0, min=-1000, max=1000)
+    #InputParams.add("Test_8", value=0, min=-1000, max=1000)
 
     OptimizedFunctionToReturn = None
 
@@ -511,12 +508,11 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Run second time, this time having removed outliers and calculated error values if they were not provided
     CheckTime(1, True)
-    ThirdOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
     CheckTime(1, False)
 
-    FinalOptimizedFunction = ThirdOptimizedFunction
-    BatmanParams = ExtractTransitParametersFromFittedFunction(ThirdOptimizedFunction.params)
-    DictionaryParams = ThirdOptimizedFunction.params
+    DictionaryParams = SecondOptimizedFunction.params
+    BatmanParams = ExtractTransitParametersFromFittedFunction(DictionaryParams)
 
     #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
     #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
@@ -524,6 +520,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Debug Fit Report
     #print(fit_report(FinalOptimizedFunction))
+    print(DictionaryParams)
     print("\n")
 
     #Display points with error bars
@@ -842,13 +839,15 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
     if(PolynomialOrder > 0):
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
-            if(PolyVal == PolynomialOrder-2):
-                PolyVals.append(1)
-            else:
-                PolyVals.append(0)
-            #PolyVals.append(Params["PolyVal" + str(PolyVal)])
+            #if(PolyVal == PolynomialOrder-2):
+            #    PolyVals.append(1)
+            #else:
+            #    PolyVals.append(0)
+            PolyVals.append(Params["PolyVal" + str(PolyVal)])
+
         print(PolyVals)
-        return(YVal * 1)
+
+        return(YVal * np.polyval(PolyVals,XVal))
     else:
         #Can not apply polyvals
         #Return unmodifed array

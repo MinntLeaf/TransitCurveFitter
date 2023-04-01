@@ -301,7 +301,10 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
-            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = False)
+            if(PolyIndex == PolynomialOrder-1):
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=0.9, max=1.1, vary = False)
+            else:
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-0.1, max=0.1, vary = False)
 
     #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
     #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
@@ -675,7 +678,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     DifferenceMax = DiferenceBounds[1]
 
     #Should not be set below 1
-    DiferenceLimitMultiplier = 2
+    DiferenceLimitMultiplier = 4
     #Conservative 4
     #Reasonable 2
     #High reduction 1
@@ -848,13 +851,13 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
-            if(PolyVal == PolynomialOrder-1):
-                PolyVals.append(1)
-            else:
-                PolyVals.append(0)
-        #PolyVals.append(Params["PolyVal" + str(PolyVal)])
+            #if(PolyVal == PolynomialOrder-1):
+            #    PolyVals.append(1)
+            #else:
+            #    PolyVals.append(0)
+            PolyVals.append(Params["PolyVal" + str(PolyVal)])
 
-        #print(np.polyval(PolyVals,XVal))
+        #print(PolyVals)
         return(YVal * np.polyval(PolyVals,XVal))
         
     else:

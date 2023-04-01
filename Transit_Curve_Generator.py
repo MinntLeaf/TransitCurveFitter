@@ -247,6 +247,13 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     #else:
     #    return (ReturnChiArray)
 
+
+    #Draws graph after each fit, only for debugging, very slow
+    global DrawProgressiveFitGraph
+    if(DrawProgressiveFitGraph):
+        ContinouseDrawGraph(DataX, DataY, ParameterValues)
+
+
     return (ReturnChiArray)
 
 
@@ -302,9 +309,9 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
             if(PolyIndex == PolynomialOrder-1):
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=0.9, max=1.1, vary = False)
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=0.9, max=1.1, vary = True)
             else:
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-0.1, max=0.1, vary = False)
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-0.1, max=0.1, vary = True)
 
     #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
     #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
@@ -865,8 +872,30 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         #Return unmodifed array
         return(YVal)
 
+def ContinouseDrawGraph(XVal, YVal, Parameters):
+        BatmanParams = ConvertFitParametersToTransitParameters(Parameters)
+
+        XBounds = GetArrayBounds(XVal)
+        SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
+        m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+        LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
+
+        matplot.cla()
+        matplot.scatter(XVal,YVal)
+        matplot.plot(SamplePoints, LightCurve, "-", color="orange")
+
+        matplot.pause(0.01)
+
 
 TestAvergageTimeMode = False
+
+#Debug only, turns on interative matplot drawing mode
+DrawProgressiveFitGraph = True
+
+if(DrawProgressiveFitGraph):
+    matplot.ion()
+
 
 if (not TestAvergageTimeMode):
     RunOptimizationOnDataInputFile(Priors)

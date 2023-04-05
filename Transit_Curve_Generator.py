@@ -49,7 +49,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 2
+PolynomialOrder = 3
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -309,9 +309,9 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
             if(PolyIndex == PolynomialOrder-1):
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=0.9, max=1.1, vary = True)
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=-1000, max=1000, vary = True)
             else:
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-0.1, max=0.1, vary = True)
+                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = True)
 
     #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
     #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
@@ -891,7 +891,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 TestAvergageTimeMode = False
 
 #Debug only, turns on interative matplot drawing mode
-DrawProgressiveFitGraph = True
+DrawProgressiveFitGraph = False
 
 if(DrawProgressiveFitGraph):
     matplot.ion()

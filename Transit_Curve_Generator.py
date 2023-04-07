@@ -43,7 +43,7 @@ Priors = [
     [-0.9, 999],  #u2
     [1, 999]  #ScalingMultiplier
 ]
-ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'ScalingMultiplier'
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
 PriorsDict = dict()
 #Zip function 'links' objects together like an array of arrays
 for Name, Prior in zip(ParamNames, Priors):
@@ -110,7 +110,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
 
     global BatmansThreads
     m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
-    flux = m.light_curve(TransiteParams) * Params["ScalingMultiplier"]
+    flux = m.light_curve(TransiteParams)
     flux = ApplyPolyMultiplier(DataX,flux,Params)
 
     CheckedOptimizedChiSqr = 0
@@ -208,7 +208,7 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
 
     global BatmansThreads
-    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams) * ParameterValues["ScalingMultiplier"]
+    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
     Flux = ApplyPolyMultiplier(DataX, Flux, ParameterValues)
 
 
@@ -270,16 +270,15 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     if (StartingParameters is not None):
         #Lmfit version
         InputParams.add("t0",value=StartingParameters["t0"],min=MinX,max=MaxX)  #Max?
-        InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX)
-        InputParams.add("rp", value=StartingParameters["rp"], min=0, max=10.0)
-        InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #What should Max Bound be?
-        InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90)
+        InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX-MinX)
+        InputParams.add("rp", value=StartingParameters["rp"], min=0, max=1.0)
+        InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #In ratio of stelar radii
+        InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90) # Degrees from "top" of star to orbit plane
         InputParams.add("ecc",value=StartingParameters["ecc"],min=0.0,max=1.0)
-        InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0)
-        InputParams.add("u1",value=StartingParameters["u1"],min=-1.0,max=1.0)
-        InputParams.add("u2",value=StartingParameters["u2"],min=-1.0,max=1.0)
-        InputParams.add("ScalingMultiplier", value=StartingParameters["ScalingMultiplier"], min=0.0001, max=10.0)
-            
+        InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0) # from 0-360 or -180 to 180. look at batman docs
+        InputParams.add("u1",value=StartingParameters["u1"],min=0.0,max=1.0)
+        InputParams.add("u2",value=StartingParameters["u2"],min=0.0,max=1.0)
+                   
     elif (Priors is not None):
         #Lmfit version
         InputParams.add("t0", value=Priors[0][0], min=MinX,max=MaxX)  #Max?
@@ -291,7 +290,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
         InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
         InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
-        InputParams.add("ScalingMultiplier", value=Priors[9][0], min=0.0001, max=10.0)
 
     else:
         #Backup 
@@ -304,7 +302,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w", value=40, min=0.0, max=360.0)
         InputParams.add("u1", value=0.5, min=-1.0, max=1.0)
         InputParams.add("u2", value=0.5, min=-1.0, max=1.0)
-        InputParams.add("ScalingMultiplier", value=1, min=0.0001, max=10.0)
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
@@ -480,7 +477,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     #Generate function based on extracted parameters
     global BatmansThreads
-    FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams) * OptimizedParamsDictionary["ScalingMultiplier"]
+    FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams)
 
     #Calculate error from diference between first attempt created function, and given values
     if (not DataIncludedErrorBars):
@@ -547,7 +544,7 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
 
     print("-OPTIMIZED PARAMETERS-")
-    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', "ScalingMultiplier"
+    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
     for name in parameter_names:
         print(name + ' : ' + str(DictionaryParams[name].value))
     print("\n")
@@ -562,7 +559,7 @@ def RunOptimizationOnDataInputFile(Priors):
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
+    flux = m.light_curve(BatmanParams)
     flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
@@ -571,7 +568,7 @@ def RunOptimizationOnDataInputFile(Priors):
 
     StringData = ""
 
-    DebugFlux = batman.TransitModel(BatmanParams,DataX,nthreads = BatmansThreads).light_curve(BatmanParams) * DictionaryParams["ScalingMultiplier"]
+    DebugFlux = batman.TransitModel(BatmanParams,DataX,nthreads = BatmansThreads).light_curve(BatmanParams)
 
     for i in range(len(DataX)):
         StringData += (str(DebugFlux[i]) + "\n")
@@ -650,7 +647,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     print(Parameters['t0'])
 
-    TestMode = True
+    TestMode = False
     
     #-Only valid if 'TestMode' is active
 
@@ -670,7 +667,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
     global BatmansThreads
     TransitModel = batman.TransitModel(BatmanParams, DataX,nthreads = BatmansThreads)
-    LightCurve = TransitModel.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+    LightCurve = TransitModel.light_curve(BatmanParams)
     LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
 
     StandardDeviation = (np.std(DataY - LightCurve))
@@ -685,7 +682,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     DifferenceMax = DiferenceBounds[1]
 
     #Should not be set below 1
-    DiferenceLimitMultiplier = 4
+    DiferenceLimitMultiplier = 8
     #Conservative 4
     #Reasonable 2
     #High reduction 1
@@ -761,7 +758,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+        LightCurve = m.light_curve(BatmanParams) # m.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
@@ -865,7 +862,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
             PolyVals.append(Params["PolyVal" + str(PolyVal)])
 
         #print(PolyVals)
-        return(YVal * np.polyval(PolyVals,XVal))
+        return(YVal + np.polyval(PolyVals,XVal))
         
     else:
         #Can not apply polyvals
@@ -878,7 +875,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         XBounds = GetArrayBounds(XVal)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = m.light_curve(BatmanParams) * Parameters["ScalingMultiplier"]
+        LightCurve = m.light_curve(BatmanParams)
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
         matplot.cla()

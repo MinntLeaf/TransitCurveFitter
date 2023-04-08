@@ -49,7 +49,7 @@ PriorsDict = dict()
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 2
+PolynomialOrder = 1
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -270,17 +270,29 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     InputParams = lmfit.Parameters()
 
     if (StartingParameters is not None):
+
+        print(StartingParameters)
+
         #Lmfit version
-        InputParams.add("t0",value=StartingParameters["t0"],min=MinX,max=MaxX)  #Max?
-        InputParams.add("per",value=StartingParameters["per"],min=0.0,max=MaxX-MinX)
-        InputParams.add("rp", value=StartingParameters["rp"], min=0, max=1.0)
-        InputParams.add("a", value=StartingParameters["a"], min=1.0,max=90)  #In ratio of stelar radii
-        InputParams.add("inc",value=StartingParameters["inc"],min=60,max=90) # Degrees from "top" of star to orbit plane
-        InputParams.add("ecc",value=StartingParameters["ecc"],min=0.0,max=1.0)
-        InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0) # from 0-360 or -180 to 180. look at batman docs
-        InputParams.add("u1",value=StartingParameters["u1"],min=0.0,max=1.0)
-        InputParams.add("u2",value=StartingParameters["u2"],min=0.0,max=1.0)
+        InputParams.add("t0",value=StartingParameters["t0"].value,min=MinX,max=MaxX)  #Max?
+        InputParams.add("per",value=StartingParameters["per"].value,min=0.0,max=MaxX-MinX)
+        InputParams.add("rp", value=StartingParameters["rp"].value, min=0, max=1.0)
+        InputParams.add("a", value=StartingParameters["a"].value, min=1.0,max=90)  #In ratio of stelar radii
+        InputParams.add("inc",value=StartingParameters["inc"].value,min=60,max=90) # Degrees from "top" of star to orbit plane
+        InputParams.add("ecc",value=StartingParameters["ecc"].value,min=0.0,max=1.0)
+        InputParams.add("w",value=StartingParameters["w"].value,min=0.0,max=360.0) # from 0-360 or -180 to 180. look at batman docs
+        InputParams.add("u1",value=StartingParameters["u1"].value,min=0.0,max=1.0)
+        InputParams.add("u2",value=StartingParameters["u2"].value,min=0.0,max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+
+        if(PolynomialOrder > 0):
+            for PolyIndex in range(0,PolynomialOrder):
+                PolyName = ("PolyVal" + str(PolyIndex))
+                StartingVal = 0
+                if(PolyName in StartingParameters):
+                    StartingVal = StartingParameters[PolyName].value
+                    print("A")
+                InputParams.add(PolyName, value=StartingVal, min=-1000, max=1000, vary = True)
                    
     elif (Priors is not None):
         #Lmfit version
@@ -294,9 +306,14 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
         InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+        if(PolynomialOrder > 0):
+            for PolyIndex in range(0,PolynomialOrder):
+                PolyName = ("PolyVal" + str(PolyIndex))
+                StartingVal = 0
+                InputParams.add(PolyName, value=StartingVal, min=-1000, max=1000, vary = True)
 
     else:
-        #Backup 
+        #Backup - Will result in bad fit if not given no starting point
         InputParams.add("t0", value=MaxX/2, min=MinX, max=MaxX)  #Max?
         InputParams.add("per", value=MaxX/2, min=0.0, max=MaxX)
         InputParams.add("rp", value=5, min=0, max=10.0)
@@ -307,10 +324,13 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("u1", value=0.5, min=-1.0, max=1.0)
         InputParams.add("u2", value=0.5, min=-1.0, max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+        if(PolynomialOrder > 0):
+            for PolyIndex in range(0,PolynomialOrder):
+                PolyName = ("PolyVal" + str(PolyIndex))
+                StartingVal = 0
+                InputParams.add(PolyName, value=StartingVal, min=-1000, max=1000, vary = True)
 
-    if(PolynomialOrder > 0):
-        for PolyIndex in range(0,PolynomialOrder):
-            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = True)
+
 
     #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
     #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
@@ -471,10 +491,10 @@ def RunOptimizationOnDataInputFile(Priors):
     OptimizedParamsDictionary = OptimizedFunction.params
     
     #Debugging
-    print("HERE")
-    print(fit_report(OptimizedFunction))
-    time.sleep(999)
-    print("HERE")
+    #print("HERE")
+    #print(fit_report(OptimizedFunction))
+    #time.sleep(999)
+    #print("HERE")
     
 
     #Generate function based on extracted parameters
@@ -531,7 +551,7 @@ def RunOptimizationOnDataInputFile(Priors):
     DataIncludedErrorBars = True
 
     #Debug Fit Report
-    #print(fit_report(FinalOptimizedFunction))
+    print(fit_report(SecondOptimizedFunction))
     print(DictionaryParams)
     print("\n")
 
@@ -650,8 +670,6 @@ def RunOptimizationOnDataInputFile(Priors):
 
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
-
-    print(Parameters['t0'])
 
     TestMode = False
     

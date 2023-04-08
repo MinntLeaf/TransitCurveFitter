@@ -19,7 +19,7 @@ from matplotlib.offsetbox import AnchoredText
 import batman
 
 #Profiling library
-import cProfile
+#import cProfile
 
 #WARNING : Only works if OpenMP is enabled
 #Do not set this value above 1 if OpenMP is not available
@@ -491,11 +491,8 @@ def RunOptimizationOnDataInputFile(Priors):
     OptimizedParamsDictionary = OptimizedFunction.params
     
     #Debugging
-    #print("HERE")
     #print(fit_report(OptimizedFunction))
-    #time.sleep(999)
-    #print("HERE")
-    
+    #time.sleep(999)    
 
     #Generate function based on extracted parameters
     global BatmansThreads
@@ -563,7 +560,7 @@ def RunOptimizationOnDataInputFile(Priors):
         #matplot.errorbar(DataX, DataY, yerr = DataERROR, fmt ="o", markersize = DataPointRenderSize)
         matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
     else:
-        matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
+        matplot.scatter(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
 
     print("-OPTIMIZED PARAMETERS-")
     parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier'

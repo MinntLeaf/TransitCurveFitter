@@ -41,15 +41,15 @@ Priors = [
     [1.0, 999],  #w
     [-0.9, 999],  #u1
     [-0.9, 999],  #u2
-    [1, 999]  #ScalingMultiplier
+    [1, 999]  #NormalizationMultiplier
 ]
-ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier'
 PriorsDict = dict()
 #Zip function 'links' objects together like an array of arrays
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
-PolynomialOrder = 3
+PolynomialOrder = 2
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -111,6 +111,7 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
     global BatmansThreads
     m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
     flux = m.light_curve(TransiteParams)
+    flux *= Params['NormalizationMultiplier']
     flux = ApplyPolyMultiplier(DataX,flux,Params)
 
     CheckedOptimizedChiSqr = 0
@@ -209,6 +210,7 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
     global BatmansThreads
     Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
+    Flux *= ParameterValues['NormalizationMultiplier']
     Flux = ApplyPolyMultiplier(DataX, Flux, ParameterValues)
 
 
@@ -278,6 +280,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w",value=StartingParameters["w"],min=0.0,max=360.0) # from 0-360 or -180 to 180. look at batman docs
         InputParams.add("u1",value=StartingParameters["u1"],min=0.0,max=1.0)
         InputParams.add("u2",value=StartingParameters["u2"],min=0.0,max=1.0)
+        InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
                    
     elif (Priors is not None):
         #Lmfit version
@@ -290,6 +293,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
         InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
         InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
+        InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
 
     else:
         #Backup 
@@ -302,13 +306,11 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("w", value=40, min=0.0, max=360.0)
         InputParams.add("u1", value=0.5, min=-1.0, max=1.0)
         InputParams.add("u2", value=0.5, min=-1.0, max=1.0)
+        InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
 
     if(PolynomialOrder > 0):
         for PolyIndex in range(0,PolynomialOrder):
-            if(PolyIndex == PolynomialOrder-1):
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=1, min=-1000, max=1000, vary = True)
-            else:
-                InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = True)
+            InputParams.add(("PolyVal" + str(PolyIndex)), value=0, min=-1000, max=1000, vary = True)
 
     #InputParams.add(("PolyVal1"), value=0, min=0, max=0.01, vary = False)
     #InputParams.add(("PolyVal2"), value=1, min=1, max=1.01, vary = False)
@@ -467,13 +469,13 @@ def RunOptimizationOnDataInputFile(Priors):
     #Extract parameters used
     OptimizedBatmanParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction.params)
     OptimizedParamsDictionary = OptimizedFunction.params
-    '''
+    
     #Debugging
     print("HERE")
     print(fit_report(OptimizedFunction))
     time.sleep(999)
     print("HERE")
-    '''
+    
 
     #Generate function based on extracted parameters
     global BatmansThreads
@@ -544,9 +546,12 @@ def RunOptimizationOnDataInputFile(Priors):
         matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
 
     print("-OPTIMIZED PARAMETERS-")
-    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
+    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier'
     for name in parameter_names:
         print(name + ' : ' + str(DictionaryParams[name].value))
+    if(PolynomialOrder > 0):
+        for PolyVal in range(0,PolynomialOrder):
+            print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].value))
     print("\n")
 
     print("-OPTIMIZED PARAMETER UNCERTAINTY VALUES-")
@@ -560,6 +565,7 @@ def RunOptimizationOnDataInputFile(Priors):
     SamplePoints = np.linspace(MinX, MaxX, 10000)
     m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
     flux = m.light_curve(BatmanParams)
+    flux *= DictionaryParams['NormalizationMultiplier']
     flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
@@ -668,6 +674,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     global BatmansThreads
     TransitModel = batman.TransitModel(BatmanParams, DataX,nthreads = BatmansThreads)
     LightCurve = TransitModel.light_curve(BatmanParams)
+    LightCurve *= Parameters['NormalizationMultiplier']
     LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
 
     StandardDeviation = (np.std(DataY - LightCurve))
@@ -759,6 +766,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         LightCurve = m.light_curve(BatmanParams) # m.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
+        LightCurve *= Parameters['NormalizationMultiplier']
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
@@ -863,7 +871,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
 
         #print(PolyVals)
         return(YVal + np.polyval(PolyVals,XVal))
-        
+        #return(YVal)
     else:
         #Can not apply polyvals
         #Return unmodifed array
@@ -876,11 +884,15 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         LightCurve = m.light_curve(BatmanParams)
+        LightCurve *= Parameters['NormalizationMultiplier']
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
+
+
 
         matplot.cla()
         matplot.scatter(XVal,YVal)
         matplot.plot(SamplePoints, LightCurve, "-", color="orange")
+        #matplot.show()
 
         matplot.pause(0.01)
 
@@ -888,6 +900,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 TestAvergageTimeMode = False
 
 #Debug only, turns on interative matplot drawing mode
+#Very slow, do not enable for normal fitting speed
 DrawProgressiveFitGraph = False
 
 if(DrawProgressiveFitGraph):

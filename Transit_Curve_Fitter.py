@@ -18,9 +18,6 @@ from matplotlib.offsetbox import AnchoredText
 #Transit curve calculation package
 import batman
 
-#Profiling library
-#import cProfile
-
 #WARNING : Only works if OpenMP is enabled
 #Do not set this value above 1 if OpenMP is not available
 BatmansThreads = 1
@@ -50,6 +47,27 @@ for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
 
 PolynomialOrder = 1
+
+class FitData():
+    def __init__(self):
+
+        self.Time = None
+        self.Flux = None
+
+        self.Error = None
+
+        self.t0 =     [0.96, 999],  #t0
+        self.per=[3.14159265, 999],  #per
+        self.rp=[0.118, 999],  #rp
+        self.a=[8.0, 999],  #a
+        self.inc=[83.7, 999],  #inc
+        self.ecc=[0.0, 999],  #ecc
+        self.w=[1.0, 999],  #w
+        self.u1=[-0.9, 999],  #u1
+        self.u2=[-0.9, 999],  #u2
+        self.NormalizationMultiplier=[1, 999]  #NormalizationMultiplier
+
+        self.PolynomialOrder = 0
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 
@@ -911,7 +929,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 
         matplot.pause(0.01)
 
-
+'''
 TestAvergageTimeMode = False
 
 #Debug only, turns on interative matplot drawing mode
@@ -920,6 +938,7 @@ DrawProgressiveFitGraph = False
 
 if(DrawProgressiveFitGraph):
     matplot.ion()
+
 
 
 if (not TestAvergageTimeMode):
@@ -935,19 +954,22 @@ else:
         print("\n============")
 
     print(("\n") * 30, "============\nFINISHED\n============\n\nAverage Time :", str(int((time.time() - MultiCountStartTime) / Iterations * 100) / 100))
+'''
 
-def FitTransitFromData(Time, Flux, Error, Priors):
+def FitTransitFromData(InputFitData):
+
+    Priors = InputFitData
 
     print("Running. Please wait...\n")
 
 
     #Get data bounds
 
-    DataX = np.array(Time)
-    DataY = np.array(Flux)
+    DataX = np.array(InputFitData.Time)
+    DataY = np.array(InputFitData.Flux)
     DataError
     if(Priors is not None):
-        DataError = Error
+        DataError = InputFitData.Error
     else:
         DataError = (DataX*0)
 
@@ -1133,5 +1155,5 @@ def FitTransitFromData(Time, Flux, Error, Priors):
 
 
 class TransitCurveFitter:
-    def FitTransit(self,Time, Flux, Priors):
-        return(RunOptimizationOnDataInputFile)
+    def FitTransit(self, InputFitData):
+        return(self.FitTransitFromData(InputFitData))

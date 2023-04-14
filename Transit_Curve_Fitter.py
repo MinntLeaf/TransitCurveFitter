@@ -26,6 +26,7 @@ BatmansThreads = 1
 #periastron  is same as periapsis
 #It just refers to the periapsis of objects orbiting stars
 
+'''
 #If supplied, will be used as initial fitting parameters
 #First array element is value, second is uncertainty
 Priors = [
@@ -38,15 +39,17 @@ Priors = [
     [1.0, 999],  #w
     [-0.9, 999],  #u1
     [-0.9, 999],  #u2
-    [1, 999]  #NormalizationMultiplier
+    [1, 999],  #NormalizationMultiplier
+    [0, None]  #PolynomialOrder
 ]
-ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier'
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier', 'PolynomialOrder'
 PriorsDict = dict()
-#Zip function 'links' objects together like an array of arrays
+#Zip function iterates over multiple arrays simultaneously, returning each arrays values at each index in combination, in this case creating a dictionary with keys of 'ParamNames' and values of 'Priors'
 for Name, Prior in zip(ParamNames, Priors):
     PriorsDict[Name] = Prior
+'''
 
-PolynomialOrder = 1
+ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier', 'PolynomialOrder'
 
 class FitData():
     def __init__(self):
@@ -65,7 +68,7 @@ class FitData():
         self.w=[1.0, 999],  #w
         self.u1=[-0.9, 999],  #u1
         self.u2=[-0.9, 999],  #u2
-        self.NormalizationMultiplier=[1, 999]  #NormalizationMultiplier
+        self._NormalizationMultiplier=[None, None]  #NormalizationMultiplier
 
         self.PolynomialOrder = 0
 
@@ -122,7 +125,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
     return (FixedArray)
 
 
-def CalculateChiSqr(DataX, DataY, Params, DataERROR):
+def CalculateChiSqr(DataX, DataY, Priors, Params, DataERROR):
 
     TransiteParams = ConvertFitParametersToTransitParameters(Params)
 
@@ -145,14 +148,13 @@ def CalculateChiSqr(DataX, DataY, Params, DataERROR):
     
 
 
-    #Removing this section decreases run time, because it increases the ammount of cycles nelder runs when it is included.
-    #Previouse comments about this section increasing run time because it was slow were wrong, this section is not to blame. I was wrong.
     ParameterValues = Params.valuesdict()
-    global PriorsDict
+    global ParamNames
 
-    for ParamName in PriorsDict.keys():
-        if PriorsDict[ParamName][1] is not None:
-            CheckedOptimizedChiSqr += ((PriorsDict[ParamName][0] - ParameterValues[ParamName]) /PriorsDict[ParamName][1])**2
+    for ParamName in ParamNames:
+        if(ParamName != "PolynomialOrder" and ParamName != "NormalizationMultiplier"):
+            if Priors[ParamName][1] is not None:
+                CheckedOptimizedChiSqr += ((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2
     
     
 
@@ -180,37 +182,8 @@ def GetArrayBounds(DataArray):
 
 
 NelderEvaluations = 0
-
-
-'''
-def CustomChiSqrInputFunction(Params, DataX, DataY, DataERROR, Priors):
-
-    ParameterValues = Params.valuesdict()
-    
-    ''
-    FittingTransityFunctionParams = batman.TransitParams()
-
-    #Maybe add function to copy params from parameter values dict, 
-    FittingTransityFunctionParams.t0 = ParameterValues["t0"]                        #time of inferior conjunction
-    FittingTransityFunctionParams.per = ParameterValues["per"]                       #orbital period
-    FittingTransityFunctionParams.rp = ParameterValues["rp"]                       #planet radius (in units of stellar radii)
-    FittingTransityFunctionParams.a = ParameterValues["a"]                        #semi-major axis (in units of stellar radii)
-    FittingTransityFunctionParams.inc = ParameterValues["inc"]                      #orbital inclination (in degrees)
-    FittingTransityFunctionParams.ecc = ParameterValues["ecc"]                       #eccentricity
-    FittingTransityFunctionParams.w = ParameterValues["w"]                        #longitude of periastron (in degrees)
-    FittingTransityFunctionParams.limb_dark = "quadratic"        #limb darkening model
-    FittingTransityFunctionParams.u = [ParameterValues["u1"], ParameterValues["u2"]]      #limb darkening coefficients [u1, u2]
-    ''
-
-
-    global NelderEvaluations
-    NelderEvaluations += 1
-
-    #Will try to minimize returned value
-    return (CalculateChiSqr(DataX, DataY, Params, DataERROR))
-'''
-
 LBMIterations = 0
+
 def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
     if(IsNelder):
@@ -238,15 +211,18 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     if (not DataERROR is None):
         ReturnChiArray /= DataERROR
 
-    global PriorsDict
+
     FoundValidPrior = False
     ModifiedPriorValues = []
-    for ParamName in PriorsDict.keys():
-        if PriorsDict[ParamName][1] is not None:
-            ModifiedPriorValues.append(abs((PriorsDict[ParamName][0] - ParameterValues[ParamName]) / PriorsDict[ParamName][1]))
+    for ParamName in Priors.keys():
+        if(ParamName != "PolynomialOrder"):
+            if Priors[ParamName][1] is not None:
+                ModifiedPriorValues.append(abs((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1]))
 
-            FoundValidPrior = True
-            #print(str((abs((PriorsDict[ParamName][0] - ParameterValues[ParamName])/PriorsDict[ParamName][1]))))
+                FoundValidPrior = True
+                #print(str((abs((Priors[ParamName][0] - ParameterValues[ParamName])/Priors[ParamName][1]))))
+        #else:
+            #Is the polynomial order, which id not an array because it does not support uncertainty
 
     FoundValidPrior = False
 
@@ -269,9 +245,9 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
 
     #Draws graph after each fit, only for debugging, very slow
-    global DrawProgressiveFitGraph
-    if(DrawProgressiveFitGraph):
-        ContinouseDrawGraph(DataX, DataY, ParameterValues)
+    #global DrawProgressiveFitGraph
+    #if(DrawProgressiveFitGraph):
+    #    ContinouseDrawGraph(DataX, DataY, ParameterValues)
 
 
     return (ReturnChiArray)
@@ -283,15 +259,23 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     MinX = Bounds[0]
     MaxX = Bounds[1]
 
-    global PolynomialOrder
+    PolynomialOrder = 0
+
+    if(StartingParameters is not None):
+        PolynomialOrder = StartingParameters["PolynomialOrder"].value
+    else:
+        if(Priors is not None):
+            PolynomialOrder = Priors["PolynomialOrder"]
 
     InputParams = lmfit.Parameters()
 
     if (StartingParameters is not None):
-
-        print(StartingParameters)
+        #Starting parameters are passed from one fitting attempt to another, they let the fitter pick up where it left off and therefore are used as starting values instead of the priors when they are supplied
 
         #Lmfit version
+        #InputParams = StartingParameters
+
+        
         InputParams.add("t0",value=StartingParameters["t0"].value,min=MinX,max=MaxX)  #Max?
         InputParams.add("per",value=StartingParameters["per"].value,min=0.0,max=MaxX-MinX)
         InputParams.add("rp", value=StartingParameters["rp"].value, min=0, max=1.0)
@@ -302,6 +286,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("u1",value=StartingParameters["u1"].value,min=0.0,max=1.0)
         InputParams.add("u2",value=StartingParameters["u2"].value,min=0.0,max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+        InputParams.add("PolynomialOrder", value=PolynomialOrder, vary = False)
 
         if(PolynomialOrder > 0):
             for PolyIndex in range(0,PolynomialOrder):
@@ -309,21 +294,26 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
                 StartingVal = 0
                 if(PolyName in StartingParameters):
                     StartingVal = StartingParameters[PolyName].value
-                    print("A")
                 InputParams.add(PolyName, value=StartingVal, min=-1000, max=1000, vary = True)
-                   
+        
+
     elif (Priors is not None):
         #Lmfit version
-        InputParams.add("t0", value=Priors[0][0], min=MinX,max=MaxX)  #Max?
-        InputParams.add("per", value=Priors[1][0], min=0.0, max=MaxX)
-        InputParams.add("rp", value=Priors[2][0], min=0, max=10.0)
-        InputParams.add("a", value=Priors[3][0], min=1.0,max=90)  #What should Max Bound be?
-        InputParams.add("inc", value=Priors[4][0], min=60, max=90)
-        InputParams.add("ecc", value=Priors[5][0], min=0.0, max=1.0)
-        InputParams.add("w", value=Priors[6][0], min=0.0, max=360.0)
-        InputParams.add("u1", value=Priors[7][0], min=-1.0, max=1.0)
-        InputParams.add("u2", value=Priors[8][0], min=-1.0, max=1.0)
+
+        #If priors are supplied they will be used as the starting values, because they are better than an arbitrary guess on where to start the fitting process
+
+        InputParams.add("t0", value=Priors["t0"][0], min=MinX,max=MaxX)  #Max?
+        InputParams.add("per", value=Priors["per"][0], min=0.0, max=MaxX)
+        InputParams.add("rp", value=Priors["rp"][0], min=0, max=10.0)
+        InputParams.add("a", value=Priors["a"][0], min=1.0,max=90)  #What should Max Bound be?
+        InputParams.add("inc", value=Priors["inc"][0], min=60, max=90)
+        InputParams.add("ecc", value=Priors["ecc"][0], min=0.0, max=1.0)
+        InputParams.add("w", value=Priors["w"][0], min=0.0, max=360.0)
+        InputParams.add("u1", value=Priors["u1"][0], min=-1.0, max=1.0)
+        InputParams.add("u2", value=Priors["u2"][0], min=-1.0, max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+        InputParams.add("PolynomialOrder", value=PolynomialOrder, vary = False)
+
         if(PolynomialOrder > 0):
             for PolyIndex in range(0,PolynomialOrder):
                 PolyName = ("PolyVal" + str(PolyIndex))
@@ -342,6 +332,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("u1", value=0.5, min=-1.0, max=1.0)
         InputParams.add("u2", value=0.5, min=-1.0, max=1.0)
         InputParams.add("NormalizationMultiplier", value=1,min=0.001,max=1000, vary = False)
+        InputParams.add("PolynomialOrder", value=PolynomialOrder, vary = False)
+
         if(PolynomialOrder > 0):
             for PolyIndex in range(0,PolynomialOrder):
                 PolyName = ("PolyVal" + str(PolyIndex))
@@ -406,283 +398,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         '''
 
     return (OptimizedFunctionToReturn)
-
-
-#Main function
-def RunOptimizationOnDataInputFile(Priors):
-
-    
-    '''
-    #Debug Testing
-    TestParameters = batman.TransitParams()
-    
-    UseGoodValues = True
-
-    if(UseGoodValues != True):
-        #Bad
-        TestParameters.t0 = 0.97779202
-        TestParameters.per = 3.14110619
-        TestParameters.rp = 0.10529006
-        TestParameters.a =0.10529006
-        TestParameters.inc = 0.10529006
-        TestParameters.ecc = 0.10529006
-        TestParameters.w = 0.10529006
-        TestParameters.limb_dark = "quadratic"
-        TestParameters.u = [-0.03773462, 0.56399941]
-    else:
-        #Good
-        TestParameters.t0 = 0.9771297617522302
-        TestParameters.per = 3.1411255188855454
-        TestParameters.rp = 0.10448573735254096
-        TestParameters.a =1.4315349098124923
-        TestParameters.inc = 63.43883728462587
-        TestParameters.ecc = 0.9497616962968043
-        TestParameters.w = 2.050529211138452
-        TestParameters.limb_dark = "quadratic"
-        TestParameters.u = [-0.05394222113055169, -0.05394222113055169]
-
-    SamplePoints = np.linspace(0.0, 26.996528, 10000)
-    print(SamplePoints)
-    global BatmansThreads
-    m = batman.TransitModel(TestParameters, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(TestParameters)
-    matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
-
-    matplot.show()
-    '''
-
-
-
-    #np.array used in this starting section is likely ineficient, but not the main time sink for this program
-
-    print("Running. Please wait...\n")
-
-    DataPoints = np.array([[0, 0, 0]])
-
-    #Clear initialized array value, because I don't know how to initialize empty array with bounds
-    DataPoints = np.delete(DataPoints, 0, 0)
-
-    FileName = "Data"
-    FileType = "txt"
-
-    # Assume CSV format with no header row:
-    datafile = np.loadtxt(FileName + "." + FileType, delimiter=',')
-    if datafile.shape[1] == 2:
-        DataIncludedErrorBars = False
-        DataX = datafile[:, 0]
-        DataY = datafile[:, 1]
-        DataERROR = -np.ones(DataX.shape)
-    elif datafile.shape[1] == 3:
-        DataIncludedErrorBars = True
-        DataX = datafile[:, 0]
-        DataY = datafile[:, 1]
-        DataERROR = datafile[:, 2]
-
-    #Get data bounds
-
-    #Used in some parameter bounds
-    Bounds = GetArrayBounds(DataX)
-    MinX = Bounds[0]
-    MaxX = Bounds[1]
-
-    #Not currently used
-    Bounds = GetArrayBounds(DataY)
-    MinY = Bounds[0]
-    MaxY = Bounds[1]
-
-    NumberOfDataPoints = len(DataX)
-
-    CheckTime(0, True)
-    # - 5.2s
-    #First optimization attempt, used to get error values
-
-    #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
-    #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
-
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
-    CheckTime(0, False)
-    global NelderEvaluations
-    #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
-
-    #Extract parameters used
-    OptimizedBatmanParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction.params)
-    OptimizedParamsDictionary = OptimizedFunction.params
-    
-    #Debugging
-    #print(fit_report(OptimizedFunction))
-    #time.sleep(999)    
-
-    #Generate function based on extracted parameters
-    global BatmansThreads
-    FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams)
-
-    #Calculate error from diference between first attempt created function, and given values
-    if (not DataIncludedErrorBars):
-        #I think "abs" should not be used here, the square of the values is being used instead. Not sure why abs affects the result in this case, but it does.
-        DataERROR = (DataY * 0 + np.std((DataY - FirstOptimizedFunction)))
-        #CheckChiSqr function expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
-
-        #Debug logging
-        #print(np.std((DataY-FirstOptimizedFunction)))
-
-
-    #Disable this to see if (too many)/(good) data points are being removed after the first fit.
-    #If this is happeneing the rpiros are liley too restrictive or too far from the actual values.
-    RemoveOutliers = True
-
-    if(RemoveOutliers):
-        #Remove Outlier values
-        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParamsDictionary)
-
-        DataX = NewDataValues[0]
-        DataY = NewDataValues[1]
-        NumberOfDataPoints = NewDataValues[2]
-        IndexesRemoved = NewDataValues[3]
-        if (len(IndexesRemoved) > 0):
-            DataERROR = np.delete(DataERROR, IndexesRemoved)
-
-        #Recalculate error
-        #If data did not include errors, and outliers have just been removed
-        if (not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
-
-            #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
-            UpdatedLightValues = np.delete(FirstOptimizedFunction,IndexesRemoved)
-
-            #Recalcualte error values with the outlier values removed
-            DataERROR = (DataY * 0 + np.std((DataY - UpdatedLightValues)))
-
-
-
-    #Run second time, this time having removed outliers and calculated error values if they were not provided
-    CheckTime(1, True)
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
-    CheckTime(1, False)
-
-    DictionaryParams = SecondOptimizedFunction.params
-    BatmanParams = ExtractTransitParametersFromFittedFunction(DictionaryParams)
-
-    #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
-    #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
-    DataIncludedErrorBars = True
-
-    #Debug Fit Report
-    print(fit_report(SecondOptimizedFunction))
-    print(DictionaryParams)
-    print("\n")
-
-    #Display points with error bars
-    if (DataIncludedErrorBars):
-        #Disabled for now
-        #Concerned the 'yerr' value being set to the DataERROR value is not an acurate representation of the points error
-
-        #matplot.errorbar(DataX, DataY, yerr = DataERROR, fmt ="o", markersize = DataPointRenderSize)
-        matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
-    else:
-        matplot.scatter(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
-
-    print("-OPTIMIZED PARAMETERS-")
-    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'NormalizationMultiplier'
-    for name in parameter_names:
-        print(name + ' : ' + str(DictionaryParams[name].value))
-    if(PolynomialOrder > 0):
-        for PolyVal in range(0,PolynomialOrder):
-            print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].value))
-    print("\n")
-
-    print("-OPTIMIZED PARAMETER UNCERTAINTY VALUES-")
-    for name in parameter_names:
-        print(name + ' : ' + str(DictionaryParams[name].stderr))
-    print("\n")
-
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DictionaryParams, DataERROR)
-    #print("\n\n",MinX,"   ",MaxX)
-    #Rendering only, uses more sample points than input x-values
-    SamplePoints = np.linspace(MinX, MaxX, 10000)
-    m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(BatmanParams)
-    flux *= DictionaryParams['NormalizationMultiplier']
-    flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
-    matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
-
-    '''
-    #Debug Logging START
-
-    StringData = ""
-
-    DebugFlux = batman.TransitModel(BatmanParams,DataX,nthreads = BatmansThreads).light_curve(BatmanParams)
-
-    for i in range(len(DataX)):
-        StringData += (str(DebugFlux[i]) + "\n")
-    
-    print("-----")
-
-    print(str(np.std((DataY-DebugFlux))))
-
-    print("-----")
-    
-    with open("Output.txt", "w") as File:
-        Lines = File.writelines(StringData)
-    '''
-
-    print("\n--- Checked Chi Sqr ---")
-    print("ChiSqr : " + str(CheckedOptimizedChiSqr))
-    print("Number Of Data Points : " + str(NumberOfDataPoints))
-    #The value below should be close to '1'
-    print("ChiSqr / # Data Points : " + str(CheckedOptimizedChiSqr / NumberOfDataPoints))
-
-    #Debug Logging END
-
-    #Fixed "χ2" rendering issue
-    BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr, 2))
-    ReducedChi = "Reduced χ2 : " + str(round(CheckedOptimizedChiSqr / NumberOfDataPoints, 5))
-
-    #Text box setup
-    ChiAnchoredTextBox = AnchoredText((BestChi + "\n" + ReducedChi), loc=4, pad=0.5)
-    matplot.setp(ChiAnchoredTextBox.patch, facecolor="Orange", alpha=0.5)
-    matplot.gca().add_artist(ChiAnchoredTextBox)
-    matplot.legend(loc=2, borderaxespad=0)
-
-
-    #Enable this to see a graph of the values the priors would generate
-    #All priors must be assigned a value for this to work
-    #If this graph is too far from the data and has low uncertainty, this can skew the fit, or result in a high chisqr value even if the fit is good, because it does not align with the priors.
-    ShowPriorGraph = False
-    if(ShowPriorGraph):
-        PriorParams = batman.TransitParams()
-
-        PriorParams.t0 = PriorsDict["t0"][0]  #time of inferior conjunction
-        PriorParams.per = PriorsDict["per"][0]  #orbital period
-        PriorParams.rp = PriorsDict["rp"][0]  #planet radius (in units of stellar radii)
-        PriorParams.a = PriorsDict["a"][0]  #semi-major axis (in units of stellar radii)
-        PriorParams.inc = PriorsDict["inc"][0]  #orbital inclination (in degrees)
-        PriorParams.ecc = PriorsDict["ecc"][0]  #eccentricity
-        PriorParams.w = PriorsDict["w"][0]  #longitude of periastron (in degrees)
-        PriorParams.limb_dark = "quadratic"  #limb darkening model
-        PriorParams.u = [PriorsDict["u1"][0], PriorsDict["u2"][0]]  #limb darkening coefficients [u1, u2]
-
-
-        SamplePoints = np.linspace(MinX, MaxX, 10000)
-        Flux = batman.TransitModel(PriorParams, SamplePoints,nthreads = BatmansThreads).light_curve(PriorParams)
-        matplot.plot(SamplePoints, Flux, "-", label="Prior Graph")
-
-    EndTimeRecording()
-
-    print("\nCompleted")
-
-    global NelderEvaluations
-    print("Nelder Iterations :",NelderEvaluations)
-    NelderEvaluations = 0
-
-    global LBMIterations
-    print("LBM Iterations :",LBMIterations)
-    LBMIterations = 0
-
-    #Display plotted data
-    #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
-    global TestAvergageTimeMode
-    if(not TestAvergageTimeMode):
-        matplot.show()
-
 
 def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
@@ -890,7 +605,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
     #POLYVAL RETURNS IN REVERSE ORDER
     #x^9+x^8+x^7...
 
-    global PolynomialOrder
+    PolynomialOrder = Params["PolynomialOrder"]
 
     if(PolynomialOrder > 0):
         
@@ -958,7 +673,21 @@ else:
 
 def FitTransitFromData(InputFitData):
 
-    Priors = InputFitData
+    Priors = dict()
+
+    Priors["t0"] = InputFitData.t0
+    Priors["per"] = InputFitData.per
+    Priors["rp"] = InputFitData.rp
+    Priors["a"] = InputFitData.a
+    Priors["inc"] = InputFitData.inc
+    Priors["ecc"] = InputFitData.ecc
+    Priors["w"] = InputFitData.w
+    Priors["u1"] = InputFitData.u1
+    Priors["u2"] = InputFitData.u2
+    Priors["NormalizationMultiplier"] = InputFitData.NormalizationMultiplier
+    Priors["PolynomialOrder"] = InputFitData.PolynomialOrder
+
+    PolynomialOrder = Priors["PolynomialOrder"]
 
     print("Running. Please wait...\n")
 
@@ -967,11 +696,16 @@ def FitTransitFromData(InputFitData):
 
     DataX = np.array(InputFitData.Time)
     DataY = np.array(InputFitData.Flux)
-    DataError
-    if(Priors is not None):
+
+    DataError = None
+    DataIncludedErrorBars = False
+
+    if(InputFitData.Error is not None):
         DataError = InputFitData.Error
+        DataIncludedErrorBars = True
     else:
         DataError = (DataX*0)
+        DataIncludedErrorBars = False
 
     #Used in some parameter bounds
     Bounds = GetArrayBounds(DataX)
@@ -1083,7 +817,7 @@ def FitTransitFromData(InputFitData):
         print(name + ' : ' + str(DictionaryParams[name].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DictionaryParams, DataERROR)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, Priors, DictionaryParams, DataERROR)
     #print("\n\n",MinX,"   ",MaxX)
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
@@ -1146,14 +880,19 @@ def FitTransitFromData(InputFitData):
     print("LBM Iterations :",LBMIterations)
     LBMIterations = 0
 
+    '''
     #Display plotted data
     #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
     global TestAvergageTimeMode
     if(not TestAvergageTimeMode):
         matplot.show()
+    '''
+    matplot.show()
+    OptimizedParamsDictionary.pop("NormalizationMultiplier")
+    return(OptimizedParamsDictionary)
 
 
 
 class TransitCurveFitter:
-    def FitTransit(self, InputFitData):
-        return(self.FitTransitFromData(InputFitData))
+    def FitTransit(InputFitData):
+        return(FitTransitFromData(InputFitData))

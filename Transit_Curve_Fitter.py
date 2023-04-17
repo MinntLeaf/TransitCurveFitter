@@ -5,10 +5,6 @@ import numpy as np
 import lmfit as lmfit
 from lmfit import Model, fit_report
 
-#Important distinction
-from lmfit import Parameters
-from lmfit import Parameter
-
 #Graph rendering package
 import matplotlib.pyplot as matplot
 
@@ -611,15 +607,9 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         
         PolyVals = []
         for PolyVal in range(0,PolynomialOrder):
-            #if(PolyVal == PolynomialOrder-1):
-            #    PolyVals.append(1)
-            #else:
-            #    PolyVals.append(0)
             PolyVals.append(Params["PolyVal" + str(PolyVal)])
 
-        #print(PolyVals)
         return(YVal + np.polyval(PolyVals,XVal))
-        #return(YVal)
     else:
         #Can not apply polyvals
         #Return unmodifed array
@@ -653,22 +643,6 @@ DrawProgressiveFitGraph = False
 
 if(DrawProgressiveFitGraph):
     matplot.ion()
-
-
-
-if (not TestAvergageTimeMode):
-    RunOptimizationOnDataInputFile(Priors)
-else:
-    MultiCountStartTime = time.time()
-    Iterations = 10
-
-    for i in range(0, Iterations):
-        RunOptimizationOnDataInputFile(Priors)
-        print("\n============")
-        print("Percent Completed :", str(100 / Iterations * (i + 1)))
-        print("\n============")
-
-    print(("\n") * 30, "============\nFINISHED\n============\n\nAverage Time :", str(int((time.time() - MultiCountStartTime) / Iterations * 100) / 100))
 '''
 
 def FitTransitFromData(InputFitData):
@@ -790,7 +764,6 @@ def FitTransitFromData(InputFitData):
 
     #Debug Fit Report
     print(fit_report(SecondOptimizedFunction))
-    print(DictionaryParams)
     print("\n")
 
     #Display points with error bars

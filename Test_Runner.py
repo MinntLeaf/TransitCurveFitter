@@ -1,4 +1,5 @@
-﻿import Transit_Curve_Fitter
+﻿import time
+import Transit_Curve_Fitter
 import numpy as np
 
 FileName = "Data"
@@ -34,14 +35,14 @@ NewFitData.w =  [1.0, 999]  #w
 NewFitData.u1 = [-0.9, 999]  #u1
 NewFitData.u2 =  [-0.9, 999]  #u2
 NewFitData.NormalizationMultiplier =  [1, 999]  #NormalizationMultiplier
-NewFitData.PolynomialOrder = 0
+NewFitData.PolynomialOrder = 1
 
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
+StartTime = time.time()
+
+Iterations = 1
+
+while Iterations > 0:
+    print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
+    Iterations-=1
+
+#print("Average Time : " + (time.strftime-StartTime)/float(Iterations))

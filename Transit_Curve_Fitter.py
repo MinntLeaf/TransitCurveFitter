@@ -128,7 +128,7 @@ def CalculateChiSqr(DataX, DataY, Priors, Params, DataERROR):
     global BatmansThreads
     m = batman.TransitModel(TransiteParams, DataX,nthreads = BatmansThreads)
     flux = m.light_curve(TransiteParams)
-    flux *= Params['NormalizationMultiplier']
+    #flux *= Params['NormalizationMultiplier']
     flux = ApplyPolyMultiplier(DataX,flux,Params)
 
     CheckedOptimizedChiSqr = 0
@@ -198,7 +198,7 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     global BatmansThreads
     Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
     Flux *= ParameterValues['NormalizationMultiplier']
-    Flux = ApplyPolyMultiplier(DataX, Flux, ParameterValues)
+    Flux = ApplyPolyMultiplier(DataX, Flux, Params)
 
 
     ReturnChiArray = abs(DataY - Flux)
@@ -509,6 +509,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        #Confirm poly aplication
         LightCurve = m.light_curve(BatmanParams) # m.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
         LightCurve *= Parameters['NormalizationMultiplier']
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
@@ -601,13 +602,15 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
     #POLYVAL RETURNS IN REVERSE ORDER
     #x^9+x^8+x^7...
 
-    PolynomialOrder = Params["PolynomialOrder"]
+    #print(Params["PolynomialOrder"])
+    PolynomialOrder = Params["PolynomialOrder"].value
 
     if(PolynomialOrder > 0):
         
         PolyVals = []
+        print(PolynomialOrder)
         for PolyVal in range(0,PolynomialOrder):
-            PolyVals.append(Params["PolyVal" + str(PolyVal)])
+            PolyVals.append(Params["PolyVal" + str(PolyVal)].value)
 
         return(YVal + np.polyval(PolyVals,XVal))
     else:
@@ -621,7 +624,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         XBounds = GetArrayBounds(XVal)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
         m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = m.light_curve(BatmanParams)
+        #LightCurve = m.light_curve(BatmanParams)
         LightCurve *= Parameters['NormalizationMultiplier']
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
@@ -709,6 +712,7 @@ def FitTransitFromData(InputFitData):
     OptimizedBatmanParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction.params)
     OptimizedParamsDictionary = OptimizedFunction.params
 
+
     #Generate function based on extracted parameters
     global BatmansThreads
     FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams)
@@ -765,7 +769,7 @@ def FitTransitFromData(InputFitData):
     #Debug Fit Report
     print(fit_report(SecondOptimizedFunction))
     print("\n")
-
+    fig = matplot.figure()
     #Display points with error bars
     if (DataIncludedErrorBars):
         #Disabled for now
@@ -819,6 +823,7 @@ def FitTransitFromData(InputFitData):
     matplot.legend(loc=2, borderaxespad=0)
 
 
+
     #Enable this to see a graph of the values the priors would generate
     #All priors must be assigned a value for this to work
     #If this graph is too far from the data and has low uncertainty, this can skew the fit, or result in a high chisqr value even if the fit is good, because it does not align with the priors.
@@ -838,7 +843,7 @@ def FitTransitFromData(InputFitData):
 
 
         SamplePoints = np.linspace(MinX, MaxX, 10000)
-        Flux = batman.TransitModel(PriorParams, SamplePoints,nthreads = BatmansThreads).light_curve(PriorParams)
+        #Flux = batman.TransitModel(PriorParams, SamplePoints,nthreads = BatmansThreads).light_curve(PriorParams)
         matplot.plot(SamplePoints, Flux, "-", label="Prior Graph")
 
     EndTimeRecording()
@@ -860,7 +865,7 @@ def FitTransitFromData(InputFitData):
     if(not TestAvergageTimeMode):
         matplot.show()
     '''
-    matplot.show()
+    fig.savefig("output_plot.jpg", dpi=200)
     OptimizedParamsDictionary.pop("NormalizationMultiplier")
     return(OptimizedParamsDictionary)
 
@@ -868,4 +873,6 @@ def FitTransitFromData(InputFitData):
 
 class TransitCurveFitter:
     def FitTransit(InputFitData):
+        ReturnData = FitTransitFromData(InputFitData);
+        #matplot.show()
         return(FitTransitFromData(InputFitData))

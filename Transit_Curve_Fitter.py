@@ -98,6 +98,7 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
 
     for ParamName in ParamNames:
         if(ParamName != "PolynomialOrder"):
+            #Don't apply prior if no uncertiainty is given, priors without uncertainty will still be used as initial fitting values
             if Priors[ParamName][1] is not None:
                 NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
                 np.append(CheckedOptimizedChiSqr, NewValue)
@@ -132,63 +133,10 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
         global LBMIterations
         LBMIterations+=1
 
-    ParameterValues = Params.valuesdict()
-
-    '''
-    FittingTransityFunctionParams = ConvertFitParametersToTransitParameters(ParameterValues)
-
-    
-    global BatmansThreads
-    Flux = batman.TransitModel(FittingTransityFunctionParams, DataX,nthreads = BatmansThreads).light_curve(FittingTransityFunctionParams)
-    Flux = ApplyPolyMultiplier(DataX, Flux, Params)
-    '''
-
     ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True)
 
-    #ReturnChiArray = abs(DataY - Flux)
-
-
-    if (not DataERROR is None):
-        ReturnChiArray /= DataERROR
-
-
-    FoundValidPrior = False
-    ModifiedPriorValues = []
-    for ParamName in Priors.keys():
-        if(ParamName != "PolynomialOrder"):
-            if Priors[ParamName][1] is not None:
-                ModifiedPriorValues.append(abs((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1]))
-
-                FoundValidPrior = True
-                #print(str((abs((Priors[ParamName][0] - ParameterValues[ParamName])/Priors[ParamName][1]))))
-        #else:
-            #Is the polynomial order, which id not an array because it does not support uncertainty
-
-    FoundValidPrior = False
-
-    if FoundValidPrior:
-        ReturnChiArray = np.concatenate((ReturnChiArray, ModifiedPriorValues), axis=0)
-
-    #Debug logging
-    #If initial params are '0' minor changes will not affect the result enough for proper fitting
-    #Check 'a' parameter is set properly, do not leave as initialized value
-    #print(Params.valuesdict(),str(DataY-Flux))
-
-    for i in ReturnChiArray:
-        if(i < 0):
-            print(i)
-
-    #if(IsNelder):
-    #    return (np.sum(ReturnChiArray))
-    #else:
-    #    return (ReturnChiArray)
-
-
     #Draws graph after each fit, only for debugging, very slow
-    #global DrawProgressiveFitGraph
-    #if(DrawProgressiveFitGraph):
-    #    ContinouseDrawGraph(DataX, DataY, ParameterValues)
-
+    ContinouseDrawGraph(DataX, DataY, Params)
 
     return (ReturnChiArray)
 
@@ -536,6 +484,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         for PolyVal in range(0,PolynomialOrder+1):
             PolyVals.append(Params["PolyVal" + str(PolyVal)].value)
 
+        print(np.polyval(PolyVals,XVal))
         return(YVal * np.polyval(PolyVals,XVal))
     else:
         #Can not apply polyvals
@@ -543,6 +492,10 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         return(YVal)
 
 def ContinouseDrawGraph(XVal, YVal, Parameters):
+        #Draws matplot graph of fit wihout halting program
+        #Requires matplot interactive mode to be inabled with matplot.ion()
+        #Used for when I don't understadn why a fit it failing and want to see the process it is taking
+
         BatmanParams = ConvertFitParametersToTransitParameters(Parameters)
 
         XBounds = GetArrayBounds(XVal)
@@ -556,7 +509,7 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         matplot.cla()
         matplot.scatter(XVal,YVal)
         matplot.plot(SamplePoints, LightCurve, "-", color="orange")
-        #matplot.show()
+        matplot.show()
 
         matplot.pause(0.01)
 
@@ -694,17 +647,20 @@ def FitTransitFromData(InputFitData):
         matplot.scatter(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
 
     print("-OPTIMIZED PARAMETERS-")
-    parameter_names = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2'
-    for name in parameter_names:
-        print(name + ' : ' + str(DictionaryParams[name].value))
+
+    for Key in Priors.keys():
+        print(Key + ' : ' + str(DictionaryParams[Key].value))
     if(PolynomialOrder != -1):
         for PolyVal in range(0,PolynomialOrder+1):
             print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].value))
     print("\n")
 
     print("-OPTIMIZED PARAMETER UNCERTAINTY VALUES-")
-    for name in parameter_names:
-        print(name + ' : ' + str(DictionaryParams[name].stderr))
+    for Key in Priors.keys():
+        print(Key + ' : ' + str(DictionaryParams[Key].stderr))
+    if(PolynomialOrder != -1):
+        for PolyVal in range(0,PolynomialOrder+1):
+            print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].stderr))
     print("\n")
 
     CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False)
@@ -761,6 +717,7 @@ def FitTransitFromData(InputFitData):
 
 class TransitCurveFitter:
     def FitTransit(InputFitData):
+        matplot.ion()
         ReturnData = FitTransitFromData(InputFitData);
         matplot.show()
         return(ReturnData)

@@ -76,8 +76,8 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
     TransitParams = ConvertFitParametersToTransitParameters(Params)
 
     global BatmansThreads
-    m = batman.TransitModel(TransitParams, DataX,nthreads = BatmansThreads)
-    flux = m.light_curve(TransitParams)
+    TransitModel = batman.TransitModel(TransitParams, DataX,nthreads = BatmansThreads)
+    flux = TransitModel.light_curve(TransitParams)
     flux = ApplyPolyMultiplier(DataX,flux,Params)
 
     CheckedOptimizedChiSqr = 0
@@ -94,14 +94,15 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
 
 
     ParameterValues = Params.valuesdict()
-    global ParamNames
+    if(Priors is not None):
+        global ParamNames
 
-    for ParamName in ParamNames:
-        if(ParamName != "PolynomialOrder"):
-            #Don't apply prior if no uncertiainty is given, priors without uncertainty will still be used as initial fitting values
-            if Priors[ParamName][1] is not None:
-                NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
-                np.append(CheckedOptimizedChiSqr, NewValue)
+        for ParamName in ParamNames:
+            if(ParamName != "PolynomialOrder"):
+                #Don't apply prior if no uncertiainty is given, priors without uncertainty will still be used as initial fitting values but cannot be applied to the chisqr value
+                if Priors[ParamName][1] is not None:
+                    NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
+                    np.append(CheckedOptimizedChiSqr, NewValue)
     
     if(ReturnArray):
         return (CheckedOptimizedChiSqr)
@@ -136,6 +137,7 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True)
 
     #Draws graph after each fit, only for debugging, very slow
+    #Comment out for normal use
     ContinouseDrawGraph(DataX, DataY, Params)
 
     return (ReturnChiArray)
@@ -402,9 +404,9 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
-        m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         #Confirm poly aplication
-        LightCurve = m.light_curve(BatmanParams) # m.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
+        LightCurve = TransitModel.light_curve(BatmanParams) # TransitModel.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
@@ -484,7 +486,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         for PolyVal in range(0,PolynomialOrder+1):
             PolyVals.append(Params["PolyVal" + str(PolyVal)].value)
 
-        print(np.polyval(PolyVals,XVal))
+        print(np.polyval(PolyVals,XVal).sum() / len(np.polyval(PolyVals,XVal)))
         return(YVal * np.polyval(PolyVals,XVal))
     else:
         #Can not apply polyvals
@@ -500,8 +502,8 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 
         XBounds = GetArrayBounds(XVal)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
-        m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = m.light_curve(BatmanParams)
+        TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        LightCurve = TransitModel.light_curve(BatmanParams)
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
 
@@ -667,8 +669,8 @@ def FitTransitFromData(InputFitData):
 
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
-    m = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-    flux = m.light_curve(BatmanParams)
+    TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+    flux = TransitModel.light_curve(BatmanParams)
     flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
@@ -709,7 +711,7 @@ def FitTransitFromData(InputFitData):
     if(not TestAvergageTimeMode):
         matplot.show()
     '''
-    fig.savefig("output_plot.jpg", dpi=800)
+    #fig.savefig("output_plot.jpg", dpi=800)
 
     return(OptimizedParamsDictionary.valuesdict())
 

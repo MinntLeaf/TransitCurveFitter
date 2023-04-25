@@ -34,7 +34,6 @@ NewFitData.ecc = [0.0, 999]  #ecc
 NewFitData.w =  [1.0, 999]  #w
 NewFitData.u1 = [-0.9, 999]  #u1
 NewFitData.u2 =  [-0.9, 999]  #u2
-NewFitData.NormalizationMultiplier =  [1, 999]  #NormalizationMultiplier
 NewFitData.PolynomialOrder = 0
 
 StartTime = time.time()

@@ -108,6 +108,8 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
                     NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
                     np.append(CheckedOptimizedChiSqr, NewValue)
     
+    print(CheckedOptimizedChiSqr.sum())
+
     if(ReturnArray):
         return (CheckedOptimizedChiSqr)
     else:
@@ -127,7 +129,7 @@ def GetArrayBounds(DataArray):
     return ([DataArray.min(), DataArray.max()])
 
 NelderEvaluations = 0
-LBMIterations = 0
+LBMEvaluations = 0
 
 def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
@@ -135,8 +137,8 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
         global NelderEvaluations
         NelderEvaluations+=1
     else:
-        global LBMIterations
-        LBMIterations+=1
+        global LBMEvaluations
+        LBMEvaluations+=1
 
     ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True)
 
@@ -488,7 +490,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
         for PolyVal in range(0,PolynomialOrder+1):
             PolyVals.append(Params["PolyVal" + str(PolyVal)].value)
 
-        print(np.polyval(PolyVals,XVal).sum() / len(np.polyval(PolyVals,XVal)))
+        #print(np.polyval(PolyVals,XVal).sum() / len(np.polyval(PolyVals,XVal)))
         return(YVal * np.polyval(PolyVals,XVal))
     else:
         #Can not apply polyvals
@@ -580,7 +582,7 @@ def FitTransitFromData(InputFitData):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
 
     
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
@@ -705,11 +707,11 @@ def FitTransitFromData(InputFitData):
 
     print("\nCompleted")
 
-    print("Nelder Iterations :",NelderEvaluations)
+    print("Nelder Evaluations :",NelderEvaluations)
     NelderEvaluations = 0
 
-    print("LBM Iterations :",LBMIterations)
-    LBMIterations = 0
+    print("LBM Evaluations :",LBMEvaluations)
+    LBMEvaluations = 0
 
     '''
     #Display plotted data

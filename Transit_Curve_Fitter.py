@@ -78,7 +78,11 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
     global BatmansThreads
     TransitModel = batman.TransitModel(TransitParams, DataX,nthreads = BatmansThreads)
     flux = TransitModel.light_curve(TransitParams)
+    matplot.plot(DataX, flux, color='red')
     flux = ApplyPolyMultiplier(DataX,flux,Params)
+    matplot.plot(DataX, flux, color='green')
+
+
 
     CheckedOptimizedChiSqr = 0
 
@@ -125,7 +129,7 @@ def GetArrayBounds(DataArray):
 NelderEvaluations = 0
 LBMIterations = 0
 
-def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
+def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
 
     if(IsNelder):
         global NelderEvaluations
@@ -141,7 +145,6 @@ def LmfitInputFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
     ContinouseDrawGraph(DataX, DataY, Params)
 
     return (ReturnChiArray)
-
 
 def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, StartingParameters):
 
@@ -253,7 +256,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
     if (not UseLBM):
         OptimizedFunctionToReturn = lmfit.minimize(
-            LmfitInputFunction,
+            ParameterEvaluationFunction,
             InputParams,
             args=(DataX, DataY, DataERROR, Priors, True),
             method="nelder",
@@ -273,7 +276,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         #Raise issue if NAN found, this shouldn't happen, but I would like to know about it if it does because it means something isn't being processed correctly.
 
         OptimizedFunctionToReturn = lmfit.minimize(
-            LmfitInputFunction,
+            ParameterEvaluationFunction,
             InputParams,
             args=(DataX, DataY, DataERROR, Priors, False),
             method="leastsq",
@@ -443,7 +446,6 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
         print("Warning :",str(int(RemovalPercentage*100)/100),"% of input values removed by outlier rejection function. This is concerningly high. Is the fit being used to remove outliers too inaccurate?")
     return (NewDataX, NewDataY, NewNumberOfDataPoints, IndexesToRemove)
 
-
 def ExtractTransitParametersFromFittedFunction(Function):
 
     #Have to manually assign params instead of using 'OptimizedFunction.params' because 'limb_dark' is not assigned by the function
@@ -508,12 +510,14 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 
 
 
-        matplot.cla()
         matplot.scatter(XVal,YVal)
-        matplot.plot(SamplePoints, LightCurve, "-", color="orange")
+        #matplot.plot(SamplePoints, LightCurve, "-", color="orange")
         matplot.show()
 
+
         matplot.pause(0.01)
+        matplot.cla()
+
 
 def FitTransitFromData(InputFitData):
 
@@ -565,6 +569,11 @@ def FitTransitFromData(InputFitData):
 
     NumberOfDataPoints = len(DataX)
 
+    global NelderEvaluations
+    NelderEvaluations = 0
+    global LBMEvaluations
+    LBMEvaluations = 0
+
     # - 5.2s
     #First optimization attempt, used to get error values
 
@@ -573,7 +582,7 @@ def FitTransitFromData(InputFitData):
 
     OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
-    global NelderEvaluations
+    
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
@@ -696,11 +705,9 @@ def FitTransitFromData(InputFitData):
 
     print("\nCompleted")
 
-    global NelderEvaluations
     print("Nelder Iterations :",NelderEvaluations)
     NelderEvaluations = 0
 
-    global LBMIterations
     print("LBM Iterations :",LBMIterations)
     LBMIterations = 0
 
@@ -711,7 +718,8 @@ def FitTransitFromData(InputFitData):
     if(not TestAvergageTimeMode):
         matplot.show()
     '''
-    #fig.savefig("output_plot.jpg", dpi=800)
+    matplot.show()
+    fig.savefig("output_plot.jpg", dpi=800)
 
     return(OptimizedParamsDictionary.valuesdict())
 

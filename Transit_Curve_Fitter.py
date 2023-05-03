@@ -32,7 +32,7 @@ class FitData():
         self.Time = None
         self.Flux = None
 
-        self.Error = None
+        self.Uncertainty = None
 
         self.t0 =     [0.96, 999],  #t0
         self.per=[3.14159265, 999],  #per
@@ -78,9 +78,9 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
     global BatmansThreads
     TransitModel = batman.TransitModel(TransitParams, DataX,nthreads = BatmansThreads)
     flux = TransitModel.light_curve(TransitParams)
-    matplot.plot(DataX, flux, color='red')
+    #matplot.plot(DataX, flux, color='green')
     flux = ApplyPolyMultiplier(DataX,flux,Params)
-    matplot.plot(DataX, flux, color='green')
+    matplot.plot(DataX, flux, color='red')
 
 
 
@@ -94,8 +94,6 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
         CheckedOptimizedChiSqr = (((DataY - flux) / DataERROR)**2)
     else:
         CheckedOptimizedChiSqr = (((DataY - flux))**2)
-    
-
 
     ParameterValues = Params.valuesdict()
     if(Priors is not None):
@@ -108,7 +106,8 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
                     NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
                     np.append(CheckedOptimizedChiSqr, NewValue)
     
-    print(CheckedOptimizedChiSqr.sum())
+    print(CheckedOptimizedChiSqr.sum()/len(flux))
+    print(len(flux))
 
     if(ReturnArray):
         return (CheckedOptimizedChiSqr)
@@ -144,7 +143,7 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
 
     #Draws graph after each fit, only for debugging, very slow
     #Comment out for normal use
-    ContinouseDrawGraph(DataX, DataY, Params)
+    #ContinouseDrawGraph(DataX, DataY, Params)
 
     return (ReturnChiArray)
 
@@ -212,6 +211,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         if(PolynomialOrder != -1):
             for PolyIndex in range(0,PolynomialOrder+1):
                 PolyName = ("PolyVal" + str(PolyIndex))
+                print(PolyName)
                 StartingVal = 0
                 if(PolyIndex == 0):
                     StartingVal = 1
@@ -489,8 +489,11 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
 
         for PolyVal in range(0,PolynomialOrder+1):
             PolyVals.append(Params["PolyVal" + str(PolyVal)].value)
+            #print(("PolyVal" + str(PolyVal)) + " : " + str(Params["PolyVal" + str(PolyVal)].value))
 
         #print(np.polyval(PolyVals,XVal).sum() / len(np.polyval(PolyVals,XVal)))
+        #print(np.polyval(PolyVals,XVal))
+        #print(PolyVals)
         return(YVal * np.polyval(PolyVals,XVal))
     else:
         #Can not apply polyvals
@@ -552,8 +555,8 @@ def FitTransitFromData(InputFitData):
     DataError = None
     DataIncludedErrorBars = False
 
-    if(InputFitData.Error is not None):
-        DataError = InputFitData.Error
+    if(InputFitData.Uncertainty is not None):
+        DataError = InputFitData.Uncertainty
         DataIncludedErrorBars = True
     else:
         DataError = (DataX*0)
@@ -582,7 +585,7 @@ def FitTransitFromData(InputFitData):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, True, None)
+    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
     
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
@@ -721,7 +724,7 @@ def FitTransitFromData(InputFitData):
         matplot.show()
     '''
     matplot.show()
-    fig.savefig("output_plot.jpg", dpi=800)
+    #fig.savefig("output_plot.jpg", dpi=800)
 
     return(OptimizedParamsDictionary.valuesdict())
 
@@ -729,7 +732,6 @@ def FitTransitFromData(InputFitData):
 
 class TransitCurveFitter:
     def FitTransit(InputFitData):
-        matplot.ion()
+        #matplot.ion()
         ReturnData = FitTransitFromData(InputFitData);
-        matplot.show()
         return(ReturnData)

@@ -7,6 +7,7 @@ FileType = "txt"
 
 # Assume CSV format with no header row:
 datafile = np.loadtxt(FileName + "." + FileType, delimiter=',')
+
 if datafile.shape[1] == 2:
     DataIncludedErrorBars = False
     DataX = datafile[:, 0]
@@ -34,7 +35,7 @@ NewFitData.ecc = [0.0, 999]  #ecc
 NewFitData.w =  [1.0, 999]  #w
 NewFitData.u1 = [-0.9, 999]  #u1
 NewFitData.u2 =  [-0.9, 999]  #u2
-NewFitData.PolynomialOrder = 0
+NewFitData.PolynomialOrder = 1
 
 StartTime = time.time()
 

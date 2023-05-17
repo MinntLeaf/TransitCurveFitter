@@ -24,7 +24,7 @@ NewFitData = Transit_Curve_Fitter.FitData()
 
 NewFitData.Time = DataX
 NewFitData.Flux = DataY
-NewFitData.Error = None
+NewFitData.Uncertainty = None
 
 NewFitData.t0 = [0.96, 999]  #t0
 NewFitData.per = [3.14159265, 999]  #per
@@ -35,7 +35,7 @@ NewFitData.ecc = [0.0, 999]  #ecc
 NewFitData.w =  [1.0, 999]  #w
 NewFitData.u1 = [-0.9, 999]  #u1
 NewFitData.u2 =  [-0.9, 999]  #u2
-NewFitData.PolynomialOrder = 1
+NewFitData.PolynomialOrder = None
 
 StartTime = time.time()
 

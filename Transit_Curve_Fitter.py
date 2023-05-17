@@ -71,7 +71,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     return (FixedArray)
 
-def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
+def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray, LBMMode):
 
     TransitParams = ConvertFitParametersToTransitParameters(Params)
 
@@ -90,11 +90,23 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
 
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if (DataIncludedErrorBars):
-        #Previousely was : CheckedOptimizedChiSqr = (((((DataY-flux)**2))/(DataERROR))).sum()
-        CheckedOptimizedChiSqr = (((DataY - flux) / DataERROR)**2)
+        CheckedOptimizedChiSqr = (((DataY - flux) / DataERROR))
     else:
-        CheckedOptimizedChiSqr = (((DataY - flux))**2)
+        CheckedOptimizedChiSqr = (((DataY - flux)))
 
+    #IMPORTANT
+    #Normally the chi array needs to be squared, this returns a positiev value and is the convention for 'chisqr' tests
+    #But the LBM fit method inputs an array of chi values, and then squares them itself as part of it's evaluation
+    #So squareing it here will result in LBM squaring it again later, which creates an unrealistically low or high value
+    #The solution is to not square the returned value when in LMBMode.
+    if(not LBMMode):
+        CheckedOptimizedChiSqr **= 2
+    else:
+        CheckedOptimizedChiSqr = abs(CheckedOptimizedChiSqr)
+
+    print(CheckedOptimizedChiSqr.sum()/len(DataY))
+        
+    
     ParameterValues = Params.valuesdict()
     if(Priors is not None):
         global ParamNames
@@ -106,10 +118,11 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray):
                     NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
                     np.append(CheckedOptimizedChiSqr, NewValue)
     
-    print(CheckedOptimizedChiSqr.sum()/len(flux))
-    print(len(flux))
 
-    if(ReturnArray):
+    #print(CheckedOptimizedChiSqr.sum()/len(flux))
+    #print(len(flux))
+
+    if (ReturnArray):
         return (CheckedOptimizedChiSqr)
     else:
         return (CheckedOptimizedChiSqr.sum())
@@ -139,7 +152,7 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
         global LBMEvaluations
         LBMEvaluations+=1
 
-    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True)
+    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True, (not IsNelder))
 
     #Draws graph after each fit, only for debugging, very slow
     #Comment out for normal use
@@ -211,7 +224,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         if(PolynomialOrder != -1):
             for PolyIndex in range(0,PolynomialOrder+1):
                 PolyName = ("PolyVal" + str(PolyIndex))
-                print(PolyName)
+                #print(PolyName)
                 StartingVal = 0
                 if(PolyIndex == 0):
                     StartingVal = 1
@@ -679,7 +692,7 @@ def FitTransitFromData(InputFitData):
             print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False, False)
 
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)

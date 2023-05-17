@@ -71,7 +71,7 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     return (FixedArray)
 
-def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray, LBMMode):
+def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, LBMMode):
 
     TransitParams = ConvertFitParametersToTransitParameters(Params)
 
@@ -88,11 +88,13 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray, LBMMod
 
     DataIncludedErrorBars = (DataERROR is not None)
 
+    DataIncludedErrorBars = False
+
     #sumation of ((data_i - model_i) / uncertainty_i)^2
     if (DataIncludedErrorBars):
-        CheckedOptimizedChiSqr = (((DataY - flux) / DataERROR))
+        CheckedOptimizedChiSqr = ((DataY - flux) / DataERROR)
     else:
-        CheckedOptimizedChiSqr = (((DataY - flux)))
+        CheckedOptimizedChiSqr = (DataY - flux)
 
     #IMPORTANT
     #Normally the chi array needs to be squared, this returns a positiev value and is the convention for 'chisqr' tests
@@ -104,9 +106,16 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray, LBMMod
     else:
         CheckedOptimizedChiSqr = abs(CheckedOptimizedChiSqr)
 
-    print(CheckedOptimizedChiSqr.sum()/len(DataY))
-        
-    
+    for Val in CheckedOptimizedChiSqr:
+        if(Val < 0):
+            print("<>")
+
+    if(LBMMode):
+        print(str((CheckedOptimizedChiSqr**2).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr**2).sum())/len(DataY))))
+    else:
+        print(str((CheckedOptimizedChiSqr).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr).sum())/len(DataY))))
+
+    '''
     ParameterValues = Params.valuesdict()
     if(Priors is not None):
         global ParamNames
@@ -117,15 +126,12 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, ReturnArray, LBMMod
                 if Priors[ParamName][1] is not None:
                     NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
                     np.append(CheckedOptimizedChiSqr, NewValue)
-    
+    '''
 
     #print(CheckedOptimizedChiSqr.sum()/len(flux))
     #print(len(flux))
 
-    if (ReturnArray):
-        return (CheckedOptimizedChiSqr)
-    else:
-        return (CheckedOptimizedChiSqr.sum())
+    return (CheckedOptimizedChiSqr)
 
 def Clamp(Value, Min, Max):
     #Should replace with external package
@@ -152,7 +158,7 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
         global LBMEvaluations
         LBMEvaluations+=1
 
-    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, True, (not IsNelder))
+    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, (not IsNelder))
 
     #Draws graph after each fit, only for debugging, very slow
     #Comment out for normal use
@@ -469,9 +475,9 @@ def ExtractTransitParametersFromFittedFunction(Function):
 
 def ConvertFitParametersToTransitParameters(InputParam):
 
-    #All parameters values being sent from one fucntion to another, shall now be sent as dictionaries
+    #All parameters values being sent from one fucntion to another, shall now be sent as param dictionaries
     #No exceptions
-    #This is to simplify things, as right now there are 3 types of parameters being juggled arround and I am no longer able to keep track of which is which
+    #This is to simplify things, as right now there are 3 types of parameter formats being juggled arround and I am no longer able to keep track of which is which
 
     FittingTransitFunctionParams = batman.TransitParams()
     ParamValues = InputParam.valuesdict()
@@ -692,7 +698,7 @@ def FitTransitFromData(InputFitData):
             print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False, False)
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False).sum()
 
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)

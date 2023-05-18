@@ -35,7 +35,7 @@ NewFitData.ecc = [0.0, 999]  #ecc
 NewFitData.w =  [1.0, 999]  #w
 NewFitData.u1 = [-0.9, 999]  #u1
 NewFitData.u2 =  [-0.9, 999]  #u2
-NewFitData.PolynomialOrder = None
+NewFitData.PolynomialOrder = 2 #Polynomial Order
 
 StartTime = time.time()
 

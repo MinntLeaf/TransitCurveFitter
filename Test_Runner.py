@@ -1,11 +1,11 @@
-﻿import time
-import Transit_Curve_Fitter
+﻿import Transit_Curve_Fitter
 import numpy as np
 
 FileName = "Data"
 FileType = "txt"
 
-# Assume CSV format with no header row:
+#Copy in data, assuming CSV format with no header row:
+
 datafile = np.loadtxt(FileName + "." + FileType, delimiter=',')
 
 if datafile.shape[1] == 2:
@@ -37,12 +37,8 @@ NewFitData.u1 = [-0.9, 1]  #u1
 NewFitData.u2 =  [-0.9, 1]  #u2
 NewFitData.PolynomialOrder = 2 #Polynomial Order
 
-StartTime = time.time()
+Results = Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData)
 
-Iterations = 1
-
-while Iterations > 0:
-    print(Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData))
-    Iterations-=1
-
-#print("Average Time : " + (time.strftime-StartTime)/float(Iterations))
+print("")
+for Key,Value in Results.items():
+    print(Key,":",str(Value))

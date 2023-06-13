@@ -1,5 +1,4 @@
 ﻿from statistics import stdev
-import time
 import numpy as np
 
 #Curve fitting package
@@ -18,11 +17,6 @@ import batman
 #WARNING : Only works if OpenMP is enabled
 #Do not set this value above 1 if OpenMP is not available
 BatmansThreads = 1
-
-#Note:
-#periastron  is same as periapsis
-#It just refers to the periapsis of objects orbiting stars
-
 
 #NOTE: This program assumes only 2 limb-darkening values, more are possible with modification
 ParamNames = 't0', 'per', 'rp', 'a', 'inc', 'ecc', 'w', 'u1', 'u2', 'PolynomialOrder'
@@ -72,20 +66,14 @@ def ReplaceZerosInArrayWithLowestValue(DataArray):
 
     return (FixedArray)
 
-def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, LBMMode, Output):
+def CalculateChiSqr(DataX, DataY, DataError, Priors, Params, LBMMode):
 
-    TransitParams = ConvertFitParametersToTransitParameters(Params)
+    flux = ConvertParamatersToFluxValues(DataX, Params)
 
-    global BatmansThreads
-    TransitModel = batman.TransitModel(TransitParams, DataX,nthreads = BatmansThreads)
-    flux = TransitModel.light_curve(TransitParams)
-    #matplot.plot(DataX, flux, color='green')
-    flux = ApplyPolyMultiplier(DataX,flux,Params)
-    #matplot.plot(DataX, flux, color='red')
-
+    '''
     if(Output):
         print("---------------------")
-        for Val in DataERROR:
+        for Val in DataError:
             print(Val)
         print("\n=======\n")
 
@@ -93,27 +81,41 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, LBMMode, Output):
         #    print(Val)
         #print("\n=======\n")
 
-        #if(DataERROR is not None):
-        #    for Val in DataERROR:
+        #if(DataError is not None):
+        #    for Val in DataError:
         #        print(Val)
         print("---------------------")
-
+    '''
 
     CheckedOptimizedChiSqr = 0
 
-    DataIncludedErrorBars = (DataERROR is not None)
+    DataIncludedErrorBars = (DataError is not None)
 
-    #sumation of ((data_i - model_i) / uncertainty_i)^2
+    #sumation of ((data_i - model_i) / uncertainty_i)
     CheckedOptimizedChiSqr = (DataY - flux)
 
     #Divide by uncertainty, because large uncetainty means the chi value for that data point is less revelant, and should not affect the overall chi value as much
     #Low uncertainty values are highly relevant to the final chi sum, so if the deviation is 1, but certainy is 0.1, then that 1/0.1 = 10, afffecting the total chi value more
     #Because even a small deivation at that level of uncertainty is relevant
     if (DataIncludedErrorBars):
-        CheckedOptimizedChiSqr /= DataERROR
+        #print(stdev(abs(CheckedOptimizedChiSqr)-abs(DataError)))
+        CheckedOptimizedChiSqr /= DataError
+
+    #Apply priors by appending them to the returned chi array
+    ParameterValues = Params.valuesdict()
+    if(Priors is not None):
+        global ParamNames
+
+        for ParamName in ParamNames:
+            if(ParamName != "PolynomialOrder"):
+                #Don't apply prior if no uncertiainty is given, priors without uncertainty will still be used as initial fitting values but cannot be applied to the chisqr value
+                if Priors[ParamName][1] is not None:
+                    NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1]))
+                    CheckedOptimizedChiSqr = np.append(CheckedOptimizedChiSqr, [NewValue])
+    
 
     #IMPORTANT
-    #Normally the chi array needs to be squared, this returns a positiev value and is the convention for 'chisqr' tests
+    #Normally the chi array needs to be squared, this returns a positive value and is the convention for 'chisqr' tests
     #But the LBM fit method inputs an array of chi values, and then squares them itself as part of it's evaluation
     #So squareing it here will result in LBM squaring it again later, which creates an unrealistically low or high value
     #The solution is to not square the returned value when in LMBMode.
@@ -126,26 +128,10 @@ def CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, LBMMode, Output):
         if(Val < 0):
             print("<>")
 
-    if(LBMMode):
-        print(str((CheckedOptimizedChiSqr**2).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr**2).sum())/len(DataY))))
-    else:
-        print(str((CheckedOptimizedChiSqr).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr).sum())/len(DataY))))
-
-    
-    ParameterValues = Params.valuesdict()
-    if(Priors is not None):
-        global ParamNames
-
-        for ParamName in ParamNames:
-            if(ParamName != "PolynomialOrder"):
-                #Don't apply prior if no uncertiainty is given, priors without uncertainty will still be used as initial fitting values but cannot be applied to the chisqr value
-                if Priors[ParamName][1] is not None:
-                    NewValue = (((Priors[ParamName][0] - ParameterValues[ParamName]) / Priors[ParamName][1])**2)
-                    np.append(CheckedOptimizedChiSqr, NewValue)
-    
-
-    #print(CheckedOptimizedChiSqr.sum()/len(flux))
-    #print(len(flux))
+    #if(LBMMode):
+    #    print(str((CheckedOptimizedChiSqr**2).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr**2).sum())/len(DataY))))
+    #else:
+    #    print(str((CheckedOptimizedChiSqr).sum()) + "   /   " + str(len(DataY)) + "   =   " + str((((CheckedOptimizedChiSqr).sum())/len(DataY))))
 
     return (CheckedOptimizedChiSqr)
 
@@ -165,7 +151,7 @@ def GetArrayBounds(DataArray):
 NelderEvaluations = 0
 LBMEvaluations = 0
 
-def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelder):
+def ParameterEvaluationFunction(Params, DataX, DataY, DataError, Priors, IsNelder):
 
     if(IsNelder):
         global NelderEvaluations
@@ -174,7 +160,7 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
         global LBMEvaluations
         LBMEvaluations+=1
 
-    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataERROR, Priors, Params, (not IsNelder), False)
+    ReturnChiArray = CalculateChiSqr(DataX, DataY, DataError, Priors, Params, (not IsNelder))
 
     #Draws graph after each fit, only for debugging, very slow
     #Comment out for normal use
@@ -183,7 +169,7 @@ def ParameterEvaluationFunction(Params, DataX, DataY, DataERROR, Priors, IsNelde
 
     return (ReturnChiArray)
 
-def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, StartingParameters):
+def OptimizeFunctionParameters(DataX, DataY, DataError, Priors, UseLBM, StartingParameters):
 
     Bounds = GetArrayBounds(DataX)
     MinX = Bounds[0]
@@ -200,7 +186,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
     InputParams = lmfit.Parameters()
 
     if ((StartingParameters is not None) or (Priors is not None)):
-
         
 
         UseParameters = StartingParameters is not None
@@ -211,8 +196,10 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         #If these are not given, and priors are provided, the priors will be used,because they are better than an arbitrary guess on where to start the fitting process
 
         if(UseParameters):
+            print("True",str(UseLBM))
             AccessDict = StartingParameters.valuesdict()
         else:
+            print("False",str(UseLBM))
             PolyExcludedPriors = Priors
             PolyExcludedPriors.pop("PolynomialOrder")
 
@@ -221,7 +208,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
                 AccessDict[Key] = Val[0]
         
         InputParams.add("t0",value=AccessDict["t0"],min=MinX-(MaxX-MinX),max=MaxX+(MaxX-MinX))  #Max?
-        InputParams.add("per",value=AccessDict["per"],min=0.0,max=MaxX-MinX)
+        InputParams.add("per",value=AccessDict["per"],min=0.000001,max=MaxX-MinX)
         InputParams.add("rp", value=AccessDict["rp"], min=0, max=1.0)
         InputParams.add("a", value=AccessDict["a"], min=1.0,max=90)  #In ratio of stellar radii
         InputParams.add("inc",value=AccessDict["inc"],min=60,max=90) # Degrees from "top" of star to orbit plane
@@ -230,7 +217,6 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         InputParams.add("u1",value=AccessDict["u1"],min=0.0,max=1.0)
         InputParams.add("u2",value=AccessDict["u2"],min=0.0,max=1.0)
         InputParams.add("PolynomialOrder", value=PolynomialOrder, vary = False)
-
         
         if(PolynomialOrder != -1):
             for PolyIndex in range(0,PolynomialOrder+1):
@@ -241,8 +227,8 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
 
                 if(UseParameters):
                     #Parametrs already generated mode
-                    if(PolyName in StartingParameters):
-                        StartingVal = StartingParameters[PolyName].value
+                    #if(PolyName in StartingParameters):
+                    StartingVal = StartingParameters[PolyName].value
                     InputParams.add(PolyName, value=StartingVal, min=-1000, max=1000, vary = True)
                 else:
                     #No initial values
@@ -252,7 +238,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         #Backup - Will result in bad fit if not given a starting point, be that initial params or priors
         InputParams.add("t0", value=MaxX/2, min=MinX, max=MaxX)  #Max?
         InputParams.add("per", value=MaxX/2, min=0.0, max=MaxX)
-        InputParams.add("rp", value=5, min=0, max=10.0)
+        InputParams.add("rp", value=0.5, min=0, max=1.0)
         InputParams.add("a", value=40, min=1.0,max=90)  #What should Max Bound be?
         InputParams.add("inc", value=70, min=60, max=90)
         InputParams.add("ecc", value=0.5, min=0.0, max=1.0)
@@ -275,7 +261,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         OptimizedFunctionToReturn = lmfit.minimize(
             ParameterEvaluationFunction,
             InputParams,
-            args=(DataX, DataY, DataERROR, Priors, True),
+            args=(DataX, DataY, DataError, Priors, True),
             method="nelder",
             calc_covar=True,
             max_nfev=None,
@@ -295,7 +281,7 @@ def OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, UseLBM, Starting
         OptimizedFunctionToReturn = lmfit.minimize(
             ParameterEvaluationFunction,
             InputParams,
-            args=(DataX, DataY, DataERROR, Priors, False),
+            args=(DataX, DataY, DataError, Priors, False),
             method="leastsq",
             calc_covar=True,
             max_nfev=None,
@@ -330,12 +316,7 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
     NewDataY = DataY
     NewNumberOfDataPoints = -1
 
-    BatmanParams = ExtractTransitParametersFromFittedFunction(Parameters)
-
-    global BatmansThreads
-    TransitModel = batman.TransitModel(BatmanParams, DataX,nthreads = BatmansThreads)
-    LightCurve = TransitModel.light_curve(BatmanParams)
-    LightCurve = ApplyPolyMultiplier(DataX, LightCurve, Parameters)
+    LightCurve = ConvertParamatersToFluxValues(DataX, Parameters)
 
     StandardDeviation = (np.std(DataY - LightCurve))
 
@@ -424,10 +405,15 @@ def RemoveOutliersFromDataSet(DataX, DataY, Parameters):
 
         XBounds = GetArrayBounds(DataX)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
+
+        LightCurve = ConvertParamatersToFluxValues(SamplePoints, Parameters)
+
+        '''
         TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
         #Confirm poly aplication
         LightCurve = TransitModel.light_curve(BatmanParams) # TransitModel.light_curve(BatmanParams) + (c0 + c1*Xals + c2*Xvals**2)
         LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
+        '''
 
         matplot.plot(SamplePoints, LightCurve, "-", color="blue")
 
@@ -490,6 +476,18 @@ def ConvertFitParametersToTransitParameters(InputParam):
 
     return (FittingTransitFunctionParams)
 
+def ConvertParamatersToFluxValues(XVal, Params):
+
+    global  BatmansThreads
+
+    BatmanParams = ConvertFitParametersToTransitParameters(Params)
+
+    TransitModel = batman.TransitModel(BatmanParams, XVal,nthreads = BatmansThreads)
+    LightCurve = TransitModel.light_curve(BatmanParams)
+    LightCurve = ApplyPolyMultiplier(XVal, LightCurve, Params)
+
+    return(LightCurve)
+
 def ApplyPolyMultiplier(XVal, YVal,  Params):
 
     #POLYVAL RETURNS IN REVERSE ORDER
@@ -520,18 +518,20 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         #Requires matplot interactive mode to be inabled with matplot.ion()
         #Used for when I don't understadn why a fit it failing and want to see the process it is taking
 
-        BatmanParams = ConvertFitParametersToTransitParameters(Parameters)
+        #BatmanParams = ConvertFitParametersToTransitParameters(Parameters)
 
         XBounds = GetArrayBounds(XVal)
         SamplePoints = np.linspace(XBounds[0], XBounds[1], 10000)
-        TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-        LightCurve = TransitModel.light_curve(BatmanParams)
-        LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
+        Flux = ConvertParamatersToFluxValues(SamplePoints, Parameters)
+
+        #TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
+        #LightCurve = TransitModel.light_curve(BatmanParams)
+        #LightCurve = ApplyPolyMultiplier(SamplePoints, LightCurve, Parameters)
 
 
 
         matplot.scatter(XVal,YVal, DataPointRenderSize)
-        matplot.plot(SamplePoints, LightCurve, "-", color="orange")
+        matplot.plot(SamplePoints, Flux, "-", color="orange")
         matplot.show()
 
 
@@ -539,9 +539,15 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
         matplot.cla()
 
 def CalculateDataUncertainty(DataY, FunctionY):
-    #DataERROR =(DataY*0) +(  (abs((DataY-FirstOptimizedFunction))).sum()/len(DataY))
-    DataERROR =ReplaceZerosInArrayWithLowestValue(DataY*0 + abs(stdev(DataY - FunctionY)))
-    return(DataERROR)
+    #DataError =(DataY*0) +(  (abs((DataY-FirstOptimizedFunction))).sum()/len(DataY))
+    #Average = abs((DataY - FunctionY).sum()/len(DataY))
+    #DataError =ReplaceZerosInArrayWithLowestValue(DataY*0 + Average)
+    #DataError = abs((DataY - FunctionY))
+    #DataError = abs(DataY-FunctionY)
+    DataError = DataY*0 + stdev((DataY))**2
+    #DataError = DataY*0 + 1
+    #print("Calculated Error : " + str(DataError))
+    return(DataError)
     #CheckChiSqr function expects data error as an array, this allows compatibilty with lmfit.fit instead of lmfit.minimize
     #So an array is created even though a single scaler value is being used
 
@@ -606,32 +612,30 @@ def FitTransitFromData(InputFitData):
     #Running this first iteration with 'nelder' generates significantly better initial results than 'leastsqr'
     #Running using 'leastsqr' results in a badly fit graph that is then used to remove outlier data points. This bad graph leads to good data points being thrown out, and the final graph is bad because of it.
 
-    OptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
+
+    FirstOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, None, Priors, False, None)
 
     
     #print("Nelder Evaluations :",str(NelderEvaluations),": Data Points :",len(DataX),": Dif :",str(NelderEvaluations/len(DataX)))
 
     #Extract parameters used
-    OptimizedBatmanParams = ExtractTransitParametersFromFittedFunction(OptimizedFunction.params)
-    OptimizedParamsDictionary = OptimizedFunction.params
+    FirstOptimizedParamsDictionary = FirstOptimizedFunction.params
 
 
-    #Generate function based on extracted parameters
-    global BatmansThreads
-    FirstOptimizedFunction = batman.TransitModel(OptimizedBatmanParams, DataX,nthreads = BatmansThreads).light_curve(OptimizedBatmanParams)
+    #Generate flux based on extracted parameters
+    FirstOptimizedFunctionFlux = ConvertParamatersToFluxValues(DataX, FirstOptimizedParamsDictionary)
 
-    #Calculate error from diference between first attempt created function, and given values
-    if (not DataIncludedErrorBars):
-        DataERROR = CalculateDataUncertainty(DataY, FirstOptimizedFunction)
-
+    #ContinouseDrawGraph(DataX, DataY, FirstOptimizedParamsDictionary)
 
     #Disable this to see if (too many)/(good) data points are being removed after the first fit.
-    #If this is happeneing the rpiros are liley too restrictive or too far from the actual values.
+    #If this is happening the priors are likely too restrictive or too far from the actual values.
     RemoveOutliers = True
+
+    #print("R 1   ",DataError.sum()/len(DataError))
 
     if(RemoveOutliers):
         #Remove Outlier values
-        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, OptimizedParamsDictionary)
+        NewDataValues = RemoveOutliersFromDataSet(DataX, DataY, FirstOptimizedParamsDictionary)
 
         DataX = NewDataValues[0]
         DataY = NewDataValues[1]
@@ -639,26 +643,40 @@ def FitTransitFromData(InputFitData):
         IndexesRemoved = NewDataValues[3]
 
         #Recalculate error
-        #If data did not include errors, and outliers have just been removed
-        if (not DataIncludedErrorBars and (len(IndexesRemoved) > 0)):
-            #Have to remove removed values from returned light values, because can't calculate std of diference betweeen arrays, when those arrays are of diferent lengths
-            UpdatedLightValues = np.delete(FirstOptimizedFunction,IndexesRemoved)
+        if (not DataIncludedErrorBars):
+            #Data did not include error, so need to calculate it
+            if(len(IndexesRemoved) > 0):
+                #Outliers have been removed, so need to removed rejected points from FirstOptimizedFunctionFlux before calculating uncertainty
+                FirstOptimizedFunctionFlux = np.delete(FirstOptimizedFunctionFlux,IndexesRemoved)
 
-            #Recalculate error values with the outlier values removed
-            DataERROR = CalculateDataUncertainty(DataY, UpdatedLightValues)
+            #Calculate error from diference between first attempt created function, and given values
+            DataError = CalculateDataUncertainty(DataY, FirstOptimizedFunctionFlux)
+        else:
+            #Data had error included
+            if(len(IndexesRemoved) > 0):
+                #Points have been removed, so DataError array needs to have these indexes removed
+                DataError = np.delete(DataError, IndexesRemoved)
+    else:
+        #Calculate error from diference between first attempt created function, and given values
+        if (not DataIncludedErrorBars):
+            DataError = CalculateDataUncertainty(DataY, FirstOptimizedFunctionFlux)
 
-
+    print("R 2   ",DataError.sum()/len(DataError))
 
     #Run second time, this time having removed outliers and calculated error values if they were not provided
 
-    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataERROR, Priors, True, OptimizedParamsDictionary)
-
+    #SecondOptimizedFunction = OptimizedFunction
+    SecondOptimizedFunction = OptimizeFunctionParameters(DataX, DataY, DataError, Priors, True, FirstOptimizedParamsDictionary)
 
     DictionaryParams = SecondOptimizedFunction.params
     BatmanParams = ExtractTransitParametersFromFittedFunction(DictionaryParams)
+    SecondOptimizedFunctionFlux = ConvertParamatersToFluxValues(DataX, FirstOptimizedParamsDictionary)
+
+    #Uncertainty Calculation
+    DataError = CalculateDataUncertainty(DataY, SecondOptimizedFunctionFlux)
 
     #From this point forward, "DataIncludedErrorBars" will no longer be used to decide if Error values need to be calculated
-    #It just means wether to use the current Error np.array for Chi calcualtions and wether to render points with error bars
+    #It just means wether to use the current Error np.array for Chi calculations and wether to render points with error bars
     DataIncludedErrorBars = True
 
     #Debug Fit Report
@@ -668,9 +686,9 @@ def FitTransitFromData(InputFitData):
     #Display points with error bars
     if (DataIncludedErrorBars):
         #Disabled for now
-        #Concerned the 'yerr' value being set to the DataERROR value is not an acurate representation of the points error
+        #Concerned the 'yerr' value being set to the DataError value is not an acurate representation of the points error
 
-        #matplot.errorbar(DataX, DataY, yerr = DataERROR, fmt ="o", markersize = DataPointRenderSize)
+        #matplot.errorbar(DataX, DataY, yerr = DataError, fmt ="o", markersize = DataPointRenderSize)
         matplot.errorbar(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
     else:
         matplot.scatter(DataX, DataY, fmt="o", markersize=DataPointRenderSize)
@@ -692,13 +710,36 @@ def FitTransitFromData(InputFitData):
             print(("PolyVal" + str(PolyVal)) + ' : ' + str(DictionaryParams["PolyVal" + str(PolyVal)].stderr))
     print("\n")
 
-    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataERROR, Priors, DictionaryParams, False, True).sum()
+
+
+    DataError = CalculateDataUncertainty(DataY, ConvertParamatersToFluxValues(DataX, DictionaryParams))
+
+    '''
+    print("[][][][][][][][][][][][][]")
+    for Val in  DataY:
+        print(Val)
+    print("[][][][][][][][][][][][][]")
+    '''
+    '''
+    print("[][][][][][][][][][][][][]")
+    for Val in  ConvertParamatersToFluxValues(DataX, DictionaryParams):
+        print(Val)
+    print("[][][][][][][][][][][][][]")
+    '''
+    '''
+    print("[][][][][][][][][][][][][]")
+    for Val in  DataError:
+        print(Val)
+    print("[][][][][][][][][][][][][]")
+    '''
+
+
+    CheckedOptimizedChiSqr = CalculateChiSqr(DataX, DataY, DataError, Priors, DictionaryParams, False).sum()
+    print(CheckedOptimizedChiSqr)
 
     #Rendering only, uses more sample points than input x-values
     SamplePoints = np.linspace(MinX, MaxX, 10000)
-    TransitModel = batman.TransitModel(BatmanParams, SamplePoints,nthreads = BatmansThreads)
-    flux = TransitModel.light_curve(BatmanParams)
-    flux = ApplyPolyMultiplier(SamplePoints, flux, DictionaryParams)
+    flux = ConvertParamatersToFluxValues(SamplePoints, DictionaryParams)
     matplot.plot(SamplePoints, flux, "-", label="Optimized Function")
 
     print("\n--- Checked Chi Sqr ---")
@@ -710,12 +751,17 @@ def FitTransitFromData(InputFitData):
     #Debug Logging END
 
     #Fixed "χ2" rendering issue
-    BestChi = "Optimized χ2 : " + str(round(CheckedOptimizedChiSqr, 2))
-    ReducedChi = "Reduced χ2 : " + str(round(CheckedOptimizedChiSqr / NumberOfDataPoints, 5))
-    NoPriorReducedChi = "No Priors Reduced χ2 : " + str(round((CalculateChiSqr(DataX, DataY, DataERROR, None, DictionaryParams, False, False).sum() / NumberOfDataPoints), 5))
+    BestChi = (round(CheckedOptimizedChiSqr, 2))
+    BestChiTxt = "Optimized χ2 : " + str(BestChi)
+
+    ReducedChi = (round(CheckedOptimizedChiSqr / NumberOfDataPoints, 5))
+    ReducedChiTxt = "Reduced χ2 : " + str(ReducedChi)
+
+    NoPriorReducedChi = (round((CalculateChiSqr(DataX, DataY, DataError, None, DictionaryParams, False).sum() / NumberOfDataPoints), 5))
+    NoPriorReducedChiTxt = "No Priors Reduced χ2 : " + str(NoPriorReducedChi)
 
     #Text box setup
-    ChiAnchoredTextBox = AnchoredText((BestChi + "\n" + ReducedChi + "\n" + NoPriorReducedChi), loc=4, pad=0.5)
+    ChiAnchoredTextBox = AnchoredText((BestChiTxt + "\n" + ReducedChiTxt + "\n" + NoPriorReducedChiTxt), loc=4, pad=0.5)
     matplot.setp(ChiAnchoredTextBox.patch, facecolor="Orange", alpha=0.5)
     matplot.gca().add_artist(ChiAnchoredTextBox)
     matplot.legend(loc=2, borderaxespad=0)
@@ -730,8 +776,6 @@ def FitTransitFromData(InputFitData):
     print("LBM Evaluations :",LBMEvaluations)
     LBMEvaluations = 0
 
-    print(DataERROR)
-
     '''
     #Display plotted data
     #Code after this function is called will not be run untill the graph is closed (this behavior can be changed)
@@ -740,9 +784,13 @@ def FitTransitFromData(InputFitData):
         matplot.show()
     '''
     matplot.show()
-    #fig.savefig("output_plot.jpg", dpi=800)
+    ReturnDictionary = DictionaryParams.valuesdict();
 
-    return(OptimizedParamsDictionary.valuesdict())
+    #fig.savefig("output_plot.jpg", dpi=800)
+    ReturnDictionary["ChiSqr"] = BestChi;
+    ReturnDictionary["ReducedChiSqr"] = ReducedChi;
+
+    return(ReturnDictionary)
 
 
 

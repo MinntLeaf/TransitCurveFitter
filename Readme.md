@@ -73,13 +73,13 @@ NewFitData.u1 = [#,#] limb darkening coefficient 1
 NewFitData.u2 = [#,#] limb darkening coefficients 2
 
 #None will not include a polynomial modifer, 0 will use a 0th order polynomial (equivalent to a scaler), 1 will use a 1st order polynomial, etc.
-#This should be set to the lowest acceptable value, as higher values (particularly past 3) lead to low accuracy results.
+#This should be set to the lowest acceptable value, as higher values (particularly past 3) leed to low accuracy results.
 NewFitData.PolynomialOrder = None
 
 #Call the fitting function
 Results = Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData)
 
-#Results will be returned as a dictionary with keys of the names of each fitting value ("t0", "per", "rp", "u1"), and values of the optimized value
+#Results will be returned as a dictionary with 'keys' of the names of each fitting value ("t0", "per", "rp", "u1", etc.), and 'values' of the optimized value
 #Note that if the polynomial parameter is enabled (Not set to None) the resulting outputs will be optimized to data normalized by the polynomial modifier
 #The polynomial paramters will be retuned as individual scalers with key names of the form "PolyVal1", "PolyVal2", "PolyVal3", etc.
 for Key, Value in Results.items():

@@ -16,7 +16,7 @@ Download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
 When you run this, you **only** need to select and install:
 "Desktop development with C++"
 
-### Build and Activate yoru Python Virtual Environment
+### Build and Activate your Python Virtual Environment
 `cd` into the folder with the code and run:
 ```
 python -m venv venv
@@ -32,7 +32,7 @@ sudo apt install python3-venv
 sudo apt install python3-dev
 ```
 
-### Build and Activate yoru Python Virtual Environment
+### Build and Activate your Python Virtual Environment
 `cd` into the folder with the code and run:
 ```
 python -m venv venv
@@ -41,13 +41,28 @@ source venv/bin/activate
 
 ## Install requirements
 Ensure your virtual environment is active first!
-The requirements document specifies versiosn used when developing the project, later versions are likely to work if no major package changes are made, but I can not guarantee compatibility
+
+The requirements document specifies version used when developing the project, later versions are likely to work if no major package changes are made, but I cannot guarantee compatibility
 ```
 pip3 install -r requirements.txt
 ```
 
 ## Running
 
+The `Transit_Curve_Fitter` file is the core package file, it is what performs the fitting process.
+
+The `Example_Runner` file runs a fit on the `Example_Data.txt` file and contains a much more in-depth explanation of the process.
+
+I highly recommend looking over the `Example_Runner` file for a better explanation of how to use this package.
+
+
+Note: `Example_Data.txt` contains an example transit generated with a period of 'pi' and should return a period of approximately 3.141 when used as input data.
+
+If you want to use different data with the `Example_Runner`, replace the data in the file `Example_Data.txt` with your data.
+
+
+
+Example of using the `Transit_Curve_Fitter` file
 ```
 #-Import
 import Transit_Curve_Fitter
@@ -61,7 +76,7 @@ NewFitData.Flux = Array of brightness values
 NewFitData.Error = Array of uncertainty values
 
 #-Priors, will be used as the starting point of the fit, and will be factored into the internal chisqr evaluation of the fit.
-#-First array value is expectec value, the second is the uncertainty of the prior.
+#-First array value is expected value, the second is the uncertainty of the prior.
 #-If you do not want the internal evaluation of the fitting process to consider it's deviation from these priors, input an uncertainty value of None.
 #-This will still use these parameters as starting points for the fitter but will not factor them into the resulting chi values
 NewFitData.t0 = [#,#] time of inferior conjunction
@@ -75,7 +90,7 @@ NewFitData.u1 = [#,#] limb darkening coefficient 1
 NewFitData.u2 = [#,#] limb darkening coefficients 2
 
 #-Polynomial modifier
-#-None will not include a polynomial modifer, 0 will use a 0th order polynomial (equivalent to a scaler), 1 will use a 1st order polynomial, etc.
+#-None will not include a polynomial modifier, 0 will use a 0th order polynomial (equivalent to a scaler), 1 will use a 1st order polynomial, etc.
 #-This should be set to the lowest acceptable value, as higher values (particularly past 3) lead to low accuracy results.
 NewFitData.PolynomialOrder = None
 
@@ -86,7 +101,7 @@ Results = Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData)
 #-Results will be returned as a dictionary with 'keys' of the names of each fitting value ("t0", "per", "rp", "u1", etc.), and 'values' of arrays of the form [OptimizedValue, Uncertainty] (If uncertainty is applicable)
 #-'ChiSqr' and 'ReducedChiSqr' will be included in the dictionary as scalar values (Results["ReducedChiSqr"] = 1.0534)
 #-Note that if the polynomial parameter is enabled (Not set to None) the resulting outputs will be optimized to data normalized by the polynomial modifier
-#-The polynomial paramters will be retuned as individual scalers with key names of the form "PolyVal1", "PolyVal2", "PolyVal3", etc.
+#-The polynomial parameters will be retuned as individual scalers with key names of the form "PolyVal1", "PolyVal2", "PolyVal3", etc.
 for Key, Value in Results.items():
    print(Key,":",Value)
 
@@ -110,12 +125,6 @@ for Key, Value in Results.items():
 #FluxValues : [All input Flux values, minus any values removed by the outlier rejection system]
 
 ```
-
-###Example
-
-Some usable data generated using pi is included in this repo as `Data.txt`. It has a period of 'pi' and should return a period of approximately 3.141 when used as input data.
-
-If you want to use different data, replace the data in the file `Data.txt` with your data.
 
 ## Updating
 Update your requirements.txt file:  

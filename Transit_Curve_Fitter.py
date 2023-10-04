@@ -501,7 +501,9 @@ def ContinouseDrawGraph(XVal, YVal, Parameters):
 
 def CalculateDataUncertainty(DataY, FunctionY):
 
-    DataError = DataY*0 + stdev((DataY-FunctionY))
+    #DataError = DataY*0 + stdev((DataY-FunctionY))
+    #Not a good guess, used to give fit functions a starting place if uncertainty of the data is not given
+    DataError = DataY*0 + stdev(FunctionY)
 
     return(DataError)
 
@@ -754,10 +756,11 @@ def FitTransitFromData(InputFitData):
 #w : [Value, Uncertainty]
 #u1 : [Value, Uncertainty]
 #u2 : [Value, Uncertainty]
-#PolynomialOrder : Value (Input polynomial value, will not be modified)
+#PolynomialOrder : Value (The input polynomial value, will not be modified and therefore has no uncertainty value)
 #PolyVal0 : [Value, Uncertainty]
 #PolyVal1 : [Value, Uncertainty]
 #PolyVal2 : [Value, Uncertainty]
+#Polyval# : Will have as many of these parameters as needed for the input polynomial order (Order 0 = 1 variable) (Order 1 = 2 variables) (order 2 = 3 variables) (etc.)
 #ChiSqr : Float (Should be close to number of input data points)
 #ReducedChiSqr : Float (Should be close to 1)
 #TimeValues : [All input Time values, minus any values removed by the outlier rejection system]

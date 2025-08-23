@@ -9,44 +9,44 @@ import pathlib
 #----------------------
 
 def ConvertParamatersToFluxValues(TimeVal, Params):
-    #Convert paramaters and time values into model flux values at the given time values
-    #X values do not need to be the ones used to generate the model, flux values can be generated from any time value that is valid within the model
+	#Convert paramaters and time values into model flux values at the given time values
+	#X values do not need to be the ones used to generate the model, flux values can be generated from any time value that is valid within the model
 
-    BatmanParams = ConvertFitParametersToTransitParameters(Params)
+	BatmanParams = ConvertFitParametersToTransitParameters(Params)
 
-    TransitModel = batman.TransitModel(BatmanParams, TimeVal)
-    LightCurve = TransitModel.light_curve(BatmanParams)
-    LightCurve = ApplyPolyMultiplier(TimeVal, LightCurve, Params)
-    return(LightCurve)
+	TransitModel = batman.TransitModel(BatmanParams, TimeVal)
+	LightCurve = TransitModel.light_curve(BatmanParams)
+	LightCurve = ApplyPolyMultiplier(TimeVal, LightCurve, Params)
+	return(LightCurve)
 
 def ApplyPolyMultiplier(TimeVal, FluxVal,  Params):
-    #Applies the polynomial parameter to a models flux values, if the polynomial modifier is 'None' it will return unmodified flux values.
+	#Applies the polynomial parameter to a models flux values, if the polynomial modifier is 'None' it will return unmodified flux values.
 
-    if(PolynomialOrder is not None):
-        PolyVals = []
-        for PolyVal in range(0,PolynomialOrder+1):
-            PolyVals.append(Results["PolyVal" + str(PolyVal)][0])
+	if(PolynomialOrder is not None):
+		PolyVals = []
+		for PolyVal in range(0,PolynomialOrder+1):
+			PolyVals.append(Results["PolyVal" + str(PolyVal)][0])
 
-        return(FluxVal * np.polyval(PolyVals,TimeVal))
-    return(FluxVal)
+		return(FluxVal * np.polyval(PolyVals,TimeVal))
+	return(FluxVal)
 
 def ConvertFitParametersToTransitParameters(InputParam):
-    #Converts a dictionary of model paramaters into 'batman.TransitParams()' to be used to generate a transit model with the 'batman' package.
-    #The Transit_Curve_Fitter script will output a dictionary of values so this can be used to convert them into usable batman paramteters.
+	#Converts a dictionary of model paramaters into 'batman.TransitParams()' to be used to generate a transit model with the 'batman' package.
+	#The Transit_Curve_Fitter script will output a dictionary of values so this can be used to convert them into usable batman paramteters.
 
-    FittingTransitFunctionParams = batman.TransitParams()
+	FittingTransitFunctionParams = batman.TransitParams()
 
-    FittingTransitFunctionParams.t0 = InputParam["t0"][0]
-    FittingTransitFunctionParams.per = InputParam["per"][0]
-    FittingTransitFunctionParams.rp = InputParam["rp"][0]
-    FittingTransitFunctionParams.a = InputParam["a"][0]
-    FittingTransitFunctionParams.inc = InputParam["inc"][0]
-    FittingTransitFunctionParams.ecc = InputParam["ecc"][0]
-    FittingTransitFunctionParams.w = InputParam["w"][0]
-    FittingTransitFunctionParams.limb_dark = "quadratic"
-    FittingTransitFunctionParams.u = [InputParam["u1"][0], InputParam["u2"][0]]
+	FittingTransitFunctionParams.t0 = InputParam["t0"][0]
+	FittingTransitFunctionParams.per = InputParam["per"][0]
+	FittingTransitFunctionParams.rp = InputParam["rp"][0]
+	FittingTransitFunctionParams.a = InputParam["a"][0]
+	FittingTransitFunctionParams.inc = InputParam["inc"][0]
+	FittingTransitFunctionParams.ecc = InputParam["ecc"][0]
+	FittingTransitFunctionParams.w = InputParam["w"][0]
+	FittingTransitFunctionParams.limb_dark = "quadratic"
+	FittingTransitFunctionParams.u = [InputParam["u1"][0], InputParam["u2"][0]]
 
-    return (FittingTransitFunctionParams)
+	return (FittingTransitFunctionParams)
 
 #----------------------
 
@@ -65,15 +65,15 @@ InputFilePath = pathlib.Path.joinpath(pathlib.Path(__file__).parent.resolve(),Fi
 datafile = np.loadtxt(InputFilePath, delimiter=',')
 
 if datafile.shape[1] == 2:
-    DataIncludedErrorBars = False
-    DataX = datafile[:, 0]
-    DataY = datafile[:, 1]
-    DataERROR = -np.ones(DataX.shape)
+	DataIncludedErrorBars = False
+	DataX = datafile[:, 0]
+	DataY = datafile[:, 1]
+	DataERROR = -np.ones(DataX.shape)
 elif datafile.shape[1] == 3:
-    DataIncludedErrorBars = True
-    DataX = datafile[:, 0]
-    DataY = datafile[:, 1]
-    DataERROR = datafile[:, 2]
+	DataIncludedErrorBars = True
+	DataX = datafile[:, 0]
+	DataY = datafile[:, 1]
+	DataERROR = datafile[:, 2]
 
 #Create a new fit data class
 NewFitData = Transit_Curve_Fitter.FitData()
@@ -104,7 +104,7 @@ Results = Transit_Curve_Fitter.TransitCurveFitter.FitTransit(NewFitData)
 #Print out 'Results' values
 print("")
 for Key,Value in Results.items():
-    print(Key,":",str(Value))
+	print(Key,":",str(Value))
 #'Results' is a dictionary of information about the optimized fit in the following format:
 #--------------------------
 #t0 : [Value, Uncertainty]

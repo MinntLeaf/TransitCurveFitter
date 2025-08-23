@@ -127,7 +127,7 @@ for Key,Value in Results.items():
 #--------------------------
 
 
-PolynomialOrder = Results["PolynomialOrder"]
+PolynomialOrder = int(Results["PolynomialOrder"])
 
 #Copy 'Results' time values, these may be diferent than the input values because some points may have been removed by the outlier rejection system
 NewXValues = Results["TimeValues"]

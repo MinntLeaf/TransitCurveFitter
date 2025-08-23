@@ -152,10 +152,10 @@ def OptimizeFunctionParameters(DataX, DataY, DataError, Priors, UseLBM, Starting
 	PolynomialOrder = -1
 
 	if(StartingParameters is not None):
-		PolynomialOrder = StartingParameters["PolynomialOrder"].value
+		PolynomialOrder = int(StartingParameters["PolynomialOrder"].value)
 	else:
 		if(Priors is not None):
-			PolynomialOrder = Priors["PolynomialOrder"]
+			PolynomialOrder = int(Priors["PolynomialOrder"])
 
 	InputParams = lmfit.Parameters()
 
@@ -459,7 +459,7 @@ def ApplyPolyMultiplier(XVal, YVal,  Params):
 	#POLYVAL INPUTS IN REVERSE ORDER, EX:
 	#x^9+x^8+x^7...
 
-	PolynomialOrder = Params["PolynomialOrder"].value
+	PolynomialOrder = int(Params["PolynomialOrder"].value)
 
 	if(PolynomialOrder != -1):
 		
@@ -525,7 +525,7 @@ def FitTransitFromData(InputFitData):
 	if(Priors["PolynomialOrder"] is None):
 		Priors["PolynomialOrder"] = -1
 
-	PolynomialOrder = Priors["PolynomialOrder"]
+	PolynomialOrder = int(Priors["PolynomialOrder"])
 
 	global DebugLog
 

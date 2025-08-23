@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as matplot
 from matplotlib.offsetbox import AnchoredText
 import batman
+import pathlib
 
 #Helper Functions
 #----------------------
@@ -56,12 +57,12 @@ def ConvertFitParametersToTransitParameters(InputParam):
 #Example Usage
 #----------------------
 
-FileName = "Example_Data"
-FileType = "txt"
+FileName = "Example_Data.txt"
 
 #Copy in data, assuming CSV format with no header row:
 
-datafile = np.loadtxt(FileName + "." + FileType, delimiter=',')
+InputFilePath = pathlib.Path.joinpath(pathlib.Path(__file__).parent.resolve(),FileName)
+datafile = np.loadtxt(InputFilePath, delimiter=',')
 
 if datafile.shape[1] == 2:
     DataIncludedErrorBars = False

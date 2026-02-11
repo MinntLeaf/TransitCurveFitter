@@ -4,7 +4,7 @@
 
 ### Python Version
 
-This was built using Python 3.10, although any version of Python 3 should work.
+This was built using Python 3.10, version below Python 3.12 should work. The version of the batman-package used in this project (2.5.2) uses the distutils package which was deprecated in Python 3.10 and removed in Python 3.12
 
 ### Windows
 #### Windows Prerequisites
